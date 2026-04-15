@@ -14,6 +14,8 @@ dpct_output
 main
 *.tmp
 
+*.ncu-rep
+
 # Exclude text files except CMake and documentation
 *.txt
 !CMakeLists.txt

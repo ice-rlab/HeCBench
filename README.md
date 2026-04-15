@@ -18,6 +18,10 @@ GSL:   sss, xlqc<br>
 GDAL:  stsg<br>
 BZip2: gerbil
 
+```sh
+sudo apt install libboost-dev
+```
+
 # DVC (Data Version Control)
 
 [DVC](https://dvc.org/) (Data Version Control) is used to store the dataset archives used by HeCBench.
@@ -28,7 +32,7 @@ This quick start uses [uv](https://docs.astral.sh/uv/) to install [DVC](https://
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
-uv tool install dvc[s3]
+uv tool install 'dvc[s3]'
 dvc pull
 ```
 
