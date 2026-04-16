@@ -53,11 +53,24 @@ bio=(
   snake
 )
 
+crypto=(
+  aes
+  bitcracker
+  bitpermute
+  chacha20
+  columnarSolver
+  ecdh
+  keccaktreehash
+  merkle
+  present  
+)
+
 benchmark=()
 benchmark+=(
     "${graph[@]}"
     "${search[@]}"
     "${bio[@]}"
+    "${crypto[@]}"
 )
 
 install_benchmark_data() {
