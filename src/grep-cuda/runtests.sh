@@ -1,15 +1,16 @@
 #!/bin/bash
+set -x
 
 teststrings=(
 "ROMEO" "JULIET"
 #Test +*|
-"ROMEO|JULIET" "R+" "R*" "R" "R+R*" "R*R+" "RR+" "RR*" "R+|J+" "(R|J)ULIET" "R*" 
+"ROMEO|JULIET" "R+" "R*" "R" "R+R*" "R*R+" "RR+" "RR*" "R+|J+" "(R|J)ULIET" "R*"
 #Test for the . wildcard
 "R..EO" "R..EO|...IET" "R..*"
 #Test for ranges
 "[a-b]" "[q-s]" "[0-9]"
 #Test for the \ sequence
-"\?" "\|" "\+" "\*" "\." "\.\?\|\+\*" 
+"\?" "\|" "\+" "\*" "\." "\.\?\|\+\*"
 #Random tests
 ".*\?" "t*hi.\?"
 );
@@ -23,7 +24,7 @@ date >> RESULTS
 echo "" >> RESULTS
 pass=1
 
-len=${#teststrings[@]} 
+len=${#teststrings[@]}
 
 FILES=./testcases/*
 
@@ -45,7 +46,7 @@ done
 
 #special test for .*
 for file in $FILES
-do	
+do
 	if diff <(./$prog -f $file '.*') <(egrep -x '.*' $file) >> RESULTS; then
 		cat /dev/null
 	else
@@ -57,6 +58,6 @@ done
 if [ $pass -eq "1" ]; then
 		echo "All tests passed" >> RESULTS
 fi
-	
+
 echo "------------" >> RESULTS
 

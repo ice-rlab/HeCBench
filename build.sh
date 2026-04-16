@@ -17,9 +17,22 @@ graph=(
   rsmt
 )
 
+search=(
+  bfs
+  bsearch
+  b+tree
+  grep
+  keogh
+  s8n
+  ss
+  sss
+  tsp
+)
+
 benchmark=()
 benchmark+=(
     "${graph[@]}"
+    "${search[@]}"
 )
 
 build_benchmark() {
