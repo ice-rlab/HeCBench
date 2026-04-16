@@ -19,7 +19,7 @@ GDAL:  stsg<br>
 BZip2: gerbil
 
 ```sh
-sudo apt install libboost-dev
+sudo apt install libboost-dev libgsl-dev
 ```
 
 # DVC (Data Version Control)
