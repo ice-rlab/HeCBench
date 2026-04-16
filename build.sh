@@ -29,10 +29,35 @@ search=(
   tsp
 )
 
+bio=(
+  all-pairs-distance
+  bsw
+  ccs
+  # cm
+  deredundancy
+  diamond
+  epistasis
+  extend2
+  frna
+  fsm
+  ga
+  local-ht
+  logan
+  minibude
+  minimap2
+  nbnxm
+  nw
+  pcc
+  prna
+  sa
+  snake
+)
+
 benchmark=()
 benchmark+=(
     "${graph[@]}"
     "${search[@]}"
+    "${bio[@]}"
 )
 
 build_benchmark() {
@@ -48,6 +73,9 @@ build_benchmark() {
 
   (
     cd "${benchmark_dir}"
+    if [[ "${name}" == "local-ht" ]]; then
+      cd src
+    fi
     make ARCH="${arch}"
   )
 }

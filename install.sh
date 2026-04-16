@@ -29,10 +29,35 @@ search=(
   tsp
 )
 
+bio=(
+  all-pairs-distance
+  bsw
+  ccs
+  # cm
+  deredundancy
+  diamond
+  epistasis
+  extend2
+  frna
+  fsm
+  ga
+  local-ht
+  logan
+  minibude
+  minimap2
+  nbnxm
+  nw
+  pcc
+  prna
+  sa
+  snake
+)
+
 benchmark=()
 benchmark+=(
     "${graph[@]}"
     "${search[@]}"
+    "${bio[@]}"
 )
 
 install_benchmark_data() {
