@@ -105,7 +105,7 @@ int main(int argc, char* argv[])
 {
   if (argc != 9) {
     printf("Usage: %s ", argv[0]);
-    printf("<number of layers> <batch size> <input feature size> ");
+    printf("<number of MLP layers> <batch size> <input feature size> ");
     printf("<hidden dimension> <number of outputs> <use relu> <use bias> <repeat>\n");
     return 1;
   }
@@ -118,7 +118,7 @@ int main(int argc, char* argv[])
   const int use_bias = atoi(argv[7]);
   const int repeat = atoi(argv[8]);
 
-  typedef float scalar_t; // FP16 MLP
+  typedef float scalar_t; // FP32 MLP
 
   g.seed(123);
   std::vector<int> output_features(num_layers);
@@ -166,7 +166,7 @@ int main(int argc, char* argv[])
   scalar_t *lt_workspace;
   GPU_CHECK(hipMalloc(&lt_workspace, lt_workspace_size));
 
-  // cuBLASLt handle (global variable)
+  // hipBLASLt handle (global variable)
   assert(hipblasLtCreate(&handle) == HIPBLAS_STATUS_SUCCESS);
 
   long time = 0;
