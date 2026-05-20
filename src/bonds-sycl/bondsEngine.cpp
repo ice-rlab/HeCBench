@@ -4,7 +4,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/time.h> 
+#include <chrono>
 #include <sycl/sycl.hpp>
 #include "bondsStructs.h"
 #include "bondsKernelsGpu.cpp"
@@ -13,7 +13,7 @@
 #define MIN(a, b)  (((a) < (b)) ? (a) : (b))
 #define MAX(a, b)  (((a) > (b)) ? (a) : (b))
 
-int monthLengthCpu(int month, bool leapYear) 
+int monthLengthCpu(int month, bool leapYear)
 {
   int MonthLength[] = {
     31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
@@ -26,7 +26,7 @@ int monthLengthCpu(int month, bool leapYear)
   return (leapYear? MonthLeapLength[month-1] : MonthLength[month-1]);
 }
 
-int monthOffsetCpu(int m, bool leapYear) 
+int monthOffsetCpu(int m, bool leapYear)
 {
   int MonthOffset[] = {
     0,  31,  59,  90, 120, 151,   // Jan - Jun
@@ -115,7 +115,7 @@ int yearOffsetCpu(int y)
   return YearOffset[y-1900];
 }
 
-bool isLeapCpu(int y) 
+bool isLeapCpu(int y)
 {
   bool YearIsLeap[] = {
     // 1900 is leap in agreement with Excel's bug
@@ -187,7 +187,7 @@ bool isLeapCpu(int y)
   return YearIsLeap[y-1900];
 }
 
-bondsDateStruct intializeDateCpu(int d, int m, int y) 
+bondsDateStruct intializeDateCpu(int d, int m, int y)
 {
   bondsDateStruct currDate;
 
@@ -210,7 +210,7 @@ void runBoundsEngine(const int repeat)
 
   for (int numTime=0; numTime < 1; numTime++)
   {
-    int numBonds = nBondsArray[numTime];  
+    int numBonds = nBondsArray[numTime];
     printf("\nNumber of Bonds: %d\n\n", numBonds);
 
     inArgsStruct inArgsHost;
@@ -281,11 +281,11 @@ void runBoundsEngine(const int repeat)
       inArgsHost.dummyStrike[numBond] = dummyStrike;
     }
     printf("Inputs for bond with index %d\n", numBonds/2);
-    printf("Bond Issue Date: %d-%d-%d\n", inArgsHost.bond[numBonds/2].startDate.month, 
-                                          inArgsHost.bond[numBonds/2].startDate.day, 
+    printf("Bond Issue Date: %d-%d-%d\n", inArgsHost.bond[numBonds/2].startDate.month,
+                                          inArgsHost.bond[numBonds/2].startDate.day,
                                           inArgsHost.bond[numBonds/2].startDate.year);
-    printf("Bond Maturity Date: %d-%d-%d\n", inArgsHost.bond[numBonds/2].maturityDate.month, 
-                                          inArgsHost.bond[numBonds/2].maturityDate.day, 
+    printf("Bond Maturity Date: %d-%d-%d\n", inArgsHost.bond[numBonds/2].maturityDate.month,
+                                          inArgsHost.bond[numBonds/2].maturityDate.day,
                                           inArgsHost.bond[numBonds/2].maturityDate.year);
     printf("Bond rate: %f\n\n", inArgsHost.bond[numBonds/2].rate);
 
@@ -306,8 +306,7 @@ void runBoundsEngine(const int repeat)
     double timeCpu;
     double timeGpu;
 
-    struct timeval start;
-    struct timeval end;
+    auto start = std::chrono::steady_clock::now();
 
 #ifdef USE_GPU
     sycl::queue q(sycl::gpu_selector_v, sycl::property::queue::in_order());
@@ -315,18 +314,15 @@ void runBoundsEngine(const int repeat)
     sycl::queue q(sycl::cpu_selector_v, sycl::property::queue::in_order());
 #endif
 
-    gettimeofday(&start, NULL);
-
     for (int i = 0; i < repeat; i++)
       ktimeGpu += getBondsResultsGpu(q, inArgsHost, resultsFromGpu, numBonds);
 
-    gettimeofday(&end, NULL);
-    timeGpu = (end.tv_sec - start.tv_sec) * 1e6 + end.tv_usec - start.tv_usec;
+    auto end = std::chrono::steady_clock::now();
+    timeGpu = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
 
     printf("Run on GPU\n");
-    printf("Average kernel execution time on GPU: %lf (ms)  \n\n", ktimeGpu * 1e-3 / repeat);
-    printf("Average processing time on GPU: %lf (ms)  \n\n", timeGpu * 1e-3 / repeat);
-
+    printf("Average kernel execution time on GPU: %lf (ms)  \n\n", ktimeGpu * 1e-6 / repeat);
+    printf("Average processing time on GPU: %f (ms)  \n\n", timeGpu * 1e-6 / repeat);
 
     double totPrice = 0.0;
     int numBond1;
@@ -342,16 +338,15 @@ void runBoundsEngine(const int repeat)
     printf("Clean Price: %f\n", resultsFromGpu.cleanPrice[numBonds/2]);
     printf("Bond Forward Val: %f\n\n", resultsFromGpu.bondForwardVal[numBonds/2]);
 
-    gettimeofday(&start, NULL);
+    start = std::chrono::steady_clock::now();
 
     for (int i = 0; i < 2; i++)
       getBondsResultsCpu(inArgsHost, resultsHost, numBonds);
 
-    gettimeofday(&end, NULL);
-
-    timeCpu = (end.tv_sec - start.tv_sec) * 1e6 + end.tv_usec - start.tv_usec;
+    end = std::chrono::steady_clock::now();
+    timeCpu = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
     printf("Run on CPU\n");
-    printf("Average processing time on CPU: %lf (ms)  \n\n", timeCpu * 1e-3 / 2);
+    printf("Average processing time on CPU: %lf (ms)  \n\n", timeCpu * 1e-6 / 2);
 
     totPrice = 0.0;
     for (numBond1= 0; numBond1< numBonds; numBond1++)
