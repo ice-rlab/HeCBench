@@ -18,8 +18,6 @@
 
 #include <oneapi/dpl/execution>
 #include <oneapi/dpl/numeric>
-#include <stdio.h>
-#include <stdlib.h>
 #include <chrono>
 #include <cmath>
 #include <random>

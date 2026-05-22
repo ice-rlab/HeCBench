@@ -16,8 +16,6 @@
 // Runs computations with on the GPU device and then checks results
 // *********************************************************************
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <chrono>
 #include <cmath>
 #include <numeric>
