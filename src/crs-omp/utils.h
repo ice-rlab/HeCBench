@@ -3,15 +3,13 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/time.h>
+#include <chrono>
 #include <omp.h>
 
 size_t align_value(size_t valueToAlign, size_t alignMask);
 
 void generateRandomValue(char *data, size_t size);
 
-double elapsed_time_in_ms(struct timeval startTime, struct timeval endTime);
- 
 typedef void (*coding_func)(int k, int index,
     const long *dataPtr, long *codeDevPtr,
     const unsigned int *bitMatrixPtr,
