@@ -45,12 +45,6 @@
 #warning "the kernels may fail too launch on some systems if the block length is too large"
 #endif
 
-double get_time() {
-  struct timeval t;
-  gettimeofday(&t,NULL);
-  return t.tv_sec+t.tv_usec*1e-6;
-}
-
 //self-defined user type
 typedef struct{
   float x;
@@ -233,6 +227,12 @@ int main(int argc, char** argv){
   const char* data_file_name = argv[1];
   float h_ff_variable[NVAR];
 
+  std::ifstream file(data_file_name, std::ifstream::in);
+  if(!file.good()){
+    std::cerr << "Failed to find/open data file. Exit" << std::endl;
+    return 1;
+  }
+
   // set far field conditions and load them into constant memory on the gpu
   const float angle_of_attack = float(3.1415926535897931 / 180.0f) * float(deg_angle_of_attack);
 
@@ -273,10 +273,6 @@ int main(int argc, char** argv){
 
   int nel;
   int nelr;
-  std::ifstream file(data_file_name, std::ifstream::in);
-  if(!file.good()){
-    throw(std::string("can not find/open file! ")+data_file_name);
-  }
   file >> nel;
   nelr = block_length*((nel / block_length )+ std::min(1, nel % block_length));
   std::cout<<"--cambine: nel="<<nel<<", nelr="<<nelr<<std::endl;
@@ -316,7 +312,7 @@ int main(int argc, char** argv){
     }
   }
 
-  double offload_start = get_time();
+  auto offload_start = std::chrono::steady_clock::now();
 
 #ifdef USE_GPU
   sycl::queue q(sycl::gpu_selector_v, sycl::property::queue::in_order());
@@ -363,7 +359,7 @@ int main(int argc, char** argv){
 
   q.wait();
 
-  double kernel_start = get_time();
+  auto kernel_start = std::chrono::steady_clock::now();
 
   initialize_variables(q, nelr, d_variables, d_ff_variable);
   initialize_variables(q, nelr, d_old_variables, d_ff_variable);	
@@ -391,7 +387,7 @@ int main(int argc, char** argv){
 
   q.wait();
 
-  double kernel_end = get_time();
+  auto kernel_end = std::chrono::steady_clock::now();
 
   copy(q, h_variables, d_variables, nelr * NVAR);
   q.wait();
@@ -409,10 +405,12 @@ int main(int argc, char** argv){
   sycl::free(d_fluxes, q);
   sycl::free(d_step_factors, q);
 
-  double offload_end = get_time();
+  auto offload_end = std::chrono::steady_clock::now();
+  auto offload_time = std::chrono::duration_cast<std::chrono::nanoseconds>(offload_end - offload_start).count();
+  printf("Device offloading time = %lf(s)\n", offload_time * 1e-9);
 
-  printf("Device offloading time = %lf(s)\n", offload_end - offload_start);
-  printf("Total execution time of kernels = %lf(s)\n", kernel_end - kernel_start);
+  auto kernel_time = std::chrono::duration_cast<std::chrono::nanoseconds>(kernel_end - kernel_start).count();
+  printf("Total execution time of kernels = %lf(s)\n", kernel_time * 1e-9);
 
 #ifdef OUTPUT
     std::cout << "Saving solution..." << std::endl;
