@@ -2,22 +2,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#include <sys/time.h>
 #include <math.h>
+#include <chrono>
 #include <utility>
 #include <omp.h>
 
 #define NTX 16
 #define NTY 16
-
-double stop_watch(double t0)
-{
-  double time;
-  struct timeval t;
-  gettimeofday(&t, NULL);
-  time = t.tv_sec * 1e6 + t.tv_usec;
-  return time-t0;
-}
 
 void usage(char *argv[]) {
   fprintf(stderr, " Usage: %s LX LY NITER\n", argv[0]);
@@ -114,12 +105,14 @@ int main(int argc, char *argv[]) {
      of blocks per direction determined by dimensions Lx, Ly */
   #pragma omp target data map (tofrom: d_in[0:Lx*Ly]) map(alloc: d_out[0:Lx*Ly])
   {
-    t0 = stop_watch(0);
+    auto start = std::chrono::steady_clock::now();
     for(i=0; i<niter; i++) {
       dev_lapl_iter(d_out, d_in, xdelta, xnorm, Lx, Ly);
       std::swap(d_out, d_in);
     }
-    t0 = stop_watch(t0)/(double)niter;
+    auto end = std::chrono::steady_clock::now();
+    auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    t0 = time * 1e-3 / niter;
   }
 
   printf("Device: iters = %8d, (Lx,Ly) = %6d, %6d, t = %8.1f usec/iter, BW = %6.3f GB/s, P = %6.3f Gflop/s\n",

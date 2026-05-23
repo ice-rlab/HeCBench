@@ -2,22 +2,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#include <sys/time.h>
 #include <math.h>
+#include <chrono>
 #include <utility>
 #include <cuda.h>
 
 #define NTX 16
 #define NTY 16
-
-double stop_watch(double t0)
-{
-  double time;
-  struct timeval t;
-  gettimeofday(&t, NULL);
-  time = t.tv_sec * 1e6 + t.tv_usec;
-  return time-t0;
-}
 
 void usage(char *argv[]) {
   fprintf(stderr, " Usage: %s LX LY NITER\n", argv[0]);
@@ -117,7 +108,7 @@ int main(int argc, char *argv[]) {
 
   /* Do iterations on GPU, record time */
   cudaDeviceSynchronize();
-  double t0 = stop_watch(0);
+  auto start = std::chrono::steady_clock::now();
 
   /* Fixed number of threads per block (in x- and y-direction), number
      of blocks per direction determined by dimensions Lx, Ly */
@@ -129,7 +120,9 @@ int main(int argc, char *argv[]) {
   }
 
   cudaDeviceSynchronize();
-  t0 = stop_watch(t0)/(double)niter;
+  auto end = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+  double t0 = time * 1e-3 / niter;
 
   printf("Device: iters = %8d, (Lx,Ly) = %6d, %6d, t = %8.1f usec/iter, BW = %6.3f GB/s, P = %6.3f Gflop/s\n",
   	 niter, Lx, Ly, t0,
