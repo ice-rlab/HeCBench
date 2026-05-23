@@ -143,7 +143,7 @@ int main(int argc, char** argv)
 
   memcpy(tCopy,tIn, size * sizeof(float));
 
-  long long start = get_time();
+  auto start = std::chrono::steady_clock::now();
 
   float *d_tIn, *d_pIn, *d_tOut;
   hipMalloc((void**)&d_tIn, sizeof(float)*size);
@@ -161,7 +161,7 @@ int main(int argc, char** argv)
 
   for(int j = 0; j < iterations; j++)
   {
-    hipLaunchKernelGGL(hotspot3d, gridDim, blockDim, 0, 0, 
+    hotspot3d<<<gridDim, blockDim>>>(
         d_tIn, d_pIn, d_tOut, numCols, numRows, layers,
         ce, cw, cn, cs, ct, cb, cc, stepDivCap);
 
@@ -180,14 +180,14 @@ int main(int argc, char** argv)
   hipFree(d_tIn);
   hipFree(d_pIn);
   hipFree(d_tOut);
-  long long stop = get_time();
+  auto end = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
 
   float* answer = (float*)calloc(size, sizeof(float));
   computeTempCPU(pIn, tCopy, answer, numCols, numRows, layers, Cap, Rx, Ry, Rz, dt, amb_temp, iterations);
 
   float acc = accuracy(tOut,answer,numRows*numCols*layers);
-  float time = (float)((stop - start)/(1000.0 * 1000.0));
-  printf("Device offloading time: %.3f (s)\n",time);
+  printf("Device offloading time: %.3f (s)\n",time * 1e-9);
   printf("Root-mean-square error: %e\n",acc);
 
   writeoutput(tOut,numRows,numCols,layers,ofile);

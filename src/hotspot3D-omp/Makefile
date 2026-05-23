@@ -53,7 +53,7 @@ endif
 $(program): $(obj) Makefile
 	$(CC) $(CFLAGS) $(obj) -o $@ $(LDFLAGS)
 
-%.o: %.cpp Makefile
+%.o: %.cpp 3D_helper.h Makefile
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:

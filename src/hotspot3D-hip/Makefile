@@ -14,16 +14,14 @@ LAUNCHER  =
 
 program = main
 
-source = 3D.cu 3D_helper.cu
-
-obj = $(source:.cu=.o)
+obj = 3D.o 3D_helper.o
 
 #===============================================================================
 # Sets Flags
 #===============================================================================
 
 # Standard Flags
-CFLAGS := $(EXTRA_CFLAGS) -std=c++17 -Wall
+CFLAGS := $(EXTRA_CFLAGS) -std=c++17 -Wall -I../hotspot3D-cuda
 
 # Linker Flags
 LDFLAGS = 
@@ -47,7 +45,10 @@ endif
 $(program): $(obj) Makefile
 	$(CC) $(CFLAGS) $(obj) -o $@ $(LDFLAGS)
 
-%.o: %.cu Makefile
+3D.o: 3D.cu ../hotspot3D-cuda/3D_helper.h Makefile
+	$(CC) $(CFLAGS) -c $< -o $@
+
+3D_helper.o: ../hotspot3D-cuda/3D_helper.cu ../hotspot3D-cuda/3D_helper.h Makefile
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
