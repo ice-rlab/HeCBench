@@ -1,17 +1,11 @@
 #include <math.h>
-#include <sys/time.h>
 #include <sycl/sycl.hpp>
+#include <chrono>
 #include "gaussianElim.h"
 
 #define BLOCK_SIZE_0 256
 #define BLOCK_SIZE_1_X 16
 #define BLOCK_SIZE_1_Y 16
-
-long long get_time() {
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  return (tv.tv_sec * 1000000) +tv.tv_usec;
-}
 
 // create both matrix and right hand side, Ke Wang 2013/08/12 11:51:06
 void init_matrix(float *m, int size){
@@ -127,12 +121,13 @@ int main(int argc, char *argv[]) {
   gaussian_reference(a_host, b_host, m_host, finalVec_host, size);
 
   // Compute the forward phase on a device
-  long long offload_start = get_time();
+  auto start = std::chrono::steady_clock::now();
   ForwardSub(a,b,m,size,timing);
-  long long offload_end = get_time();
+  auto end = std::chrono::steady_clock::now();
 
   if (timing) {
-    printf("Device offloading time %lld (us)\n\n",offload_end - offload_start);
+    auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    printf("Device offloading time %lf (us)\n\n", time * 1e-3);
   }
 
   // Compute the backward phase on a host
@@ -211,7 +206,7 @@ void ForwardSub(float *a, float *b, float *m, int size, int timing) {
   q.memcpy(d_m, m, nelems_bytes);
 
   q.wait();
-  auto start = get_time();
+  auto start = std::chrono::steady_clock::now();
 
   // Run kernels
   for (int t=0; t<(size-1); t++) {
@@ -245,9 +240,11 @@ void ForwardSub(float *a, float *b, float *m, int size, int timing) {
   } // for (t=0; t<(size-1); t++) 
 
   q.wait();
-  auto end = get_time();
-  if (timing)
-    printf("Total kernel execution time %lld (us)\n", (end - start));
+  auto end = std::chrono::steady_clock::now();
+  if (timing) {
+    auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    printf("Total kernel execution time %lf (us)\n", time * 1e-3);
+  }
 
   q.memcpy(a, d_a, nelems_bytes);
   q.memcpy(b, d_b, size_bytes);

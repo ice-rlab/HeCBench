@@ -1,17 +1,11 @@
 #include <math.h>
-#include <sys/time.h>
 #include <hip/hip_runtime.h>
+#include <chrono>
 #include "gaussianElim.h"
 
 #define BLOCK_SIZE_0 256
 #define BLOCK_SIZE_1_X 16
 #define BLOCK_SIZE_1_Y 16
-
-long long get_time() {
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  return (tv.tv_sec * 1000000) +tv.tv_usec;
-}
 
 // create both matrix and right hand side, Ke Wang 2013/08/12 11:51:06
 void init_matrix(float *m, int size){
@@ -128,13 +122,13 @@ int main(int argc, char *argv[]) {
   gaussian_reference(a_host, b_host, m_host, finalVec_host, size);
 
   // Compute the forward phase on a device
-  long long offload_start = get_time();
+  auto start = std::chrono::steady_clock::now();
   ForwardSub(a,b,m,size,timing);
-  long long offload_end = get_time();
+  auto end = std::chrono::steady_clock::now();
 
   if (timing) {
-    printf("Device offloading time %lld (us)\n\n",
-           offload_end - offload_start);
+    auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    printf("Device offloading time %lf (us)\n\n", time * 1e-3);
   }
 
   // Compute the backward phase on a host
@@ -231,17 +225,19 @@ void ForwardSub(float *a, float *b, float *m, int size, int timing) {
   hipMemcpy(d_m, m, size*size*sizeof(float), hipMemcpyHostToDevice);
 
   hipDeviceSynchronize();
-  auto start = get_time();
+  auto start = std::chrono::steady_clock::now();
 
   for (int t=0; t<(size-1); t++) {
-    hipLaunchKernelGGL(fan1, gridDim_fan1, blockDim_fan1, 0, 0, d_a, d_m, size, t);
-    hipLaunchKernelGGL(fan2, gridDim_fan2, blockDim_fan2, 0, 0, d_a, d_b, d_m, size, t);
+    fan1<<<gridDim_fan1, blockDim_fan1>>> (d_a, d_m, size, t);
+    fan2<<<gridDim_fan2, blockDim_fan2>>> (d_a, d_b, d_m, size, t);
   } 
 
   hipDeviceSynchronize();
-  auto end = get_time();
-  if (timing)
-    printf("Total kernel execution time %lld (us)\n", (end - start));
+  auto end = std::chrono::steady_clock::now();
+  if (timing) {
+    auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    printf("Total kernel execution time %lf (us)\n", time * 1e-3);
+  }
 
   hipMemcpy(a, d_a, size*size*sizeof(float), hipMemcpyDeviceToHost);
   hipMemcpy(b, d_b, size*sizeof(float), hipMemcpyDeviceToHost);
