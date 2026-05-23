@@ -10,7 +10,7 @@
 #include <iterator>
 #include <cmath>
 #include <cassert>
-#include <sys/time.h>
+#include <chrono>
 
 //  Copyright © 2019 Naga V Gudapati. All rights reserved.
 
