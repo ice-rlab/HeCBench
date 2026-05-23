@@ -1,9 +1,9 @@
+#include <chrono>
+#include <iostream>
+#include <sycl/sycl.hpp>
 #include "./../main.h"                // (in main directory)            needed to recognized input parameters
 #include "./../util/avi/avilib.h"          // (in directory)              needed by avi functions
 #include "./../util/avi/avimod.h"          // (in directory)              needed by avi functions
-#include "./../util/timer/timer.h"
-#include <sycl/sycl.hpp>
-#include <iostream>
 
 uint64_t 
 kernel_gpu_wrapper(
@@ -357,7 +357,7 @@ kernel_gpu_wrapper(
     //==================================================50
     //  launch kernel
     //==================================================50
-    uint64_t start_time = get_time();
+    auto start_time = std::chrono::steady_clock::now();
 
     q.submit ([&](sycl::handler &cgh) {
       cgh.parallel_for<class heartwall>(
@@ -378,8 +378,8 @@ kernel_gpu_wrapper(
     q.wait();
 #endif
 
-    uint64_t end_time = get_time();
-    kernel_time += end_time - start_time;
+    auto end_time = std::chrono::steady_clock::now();
+    kernel_time += std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count();
 
     // free frame after each loop iteration, since AVI library allocates memory for every frame fetched
     free(frame);

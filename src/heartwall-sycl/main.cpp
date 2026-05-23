@@ -1,9 +1,9 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <chrono>
 
 #include "main.h"                // (in the main program folder)  needed to recognized input parameters
-#include "timer.h"
 #include "file.h"
 
 //  UTILITIES
@@ -29,17 +29,17 @@ main(int argc, char* argv []) {
   printf("Workgroup size of kernel = %d \n", NUMBER_THREADS);
 
   // time
-  long long time0;
-  long long time1;
-  long long time2;
-  long long time3;
-  long long time4;
-  long long time5;
+  std::chrono::steady_clock::time_point time0,
+                                        time1,
+                                        time2,
+                                        time3,
+                                        time4,
+                                        time5;
 
   // other
   avi_t* frames;
 
-  time0 = get_time();
+  time0 = std::chrono::steady_clock::now();
 
   //  STRUCTURES, GLOBAL STRUCTURE VARIABLES
 
@@ -66,7 +66,7 @@ main(int argc, char* argv []) {
   common.frame_elem = common.frame_rows * common.frame_cols;
   common.frame_mem = sizeof(FP) * common.frame_elem;
 
-  time1 = get_time();
+  time1 = std::chrono::steady_clock::now();
 
   //   CHECK INPUT ARGUMENTS
 
@@ -82,7 +82,7 @@ main(int argc, char* argv []) {
     }
   }
 
-  time2 = get_time();
+  time2 = std::chrono::steady_clock::now();
 
   //  INPUTS
 
@@ -141,7 +141,7 @@ main(int argc, char* argv []) {
             epiRow,
             epiCol);
 
-  time3 = get_time();
+  time3 = std::chrono::steady_clock::now();
 
   //  KERNELL WRAPPER CALL
 
@@ -156,7 +156,7 @@ main(int argc, char* argv []) {
                      tEpiColLoc,
                      frames);
 
-  time4 = get_time();
+  time4 = std::chrono::steady_clock::now();
 
   //  DUMP DATA TO FILE
 #ifdef OUTPUT
@@ -187,23 +187,39 @@ main(int argc, char* argv []) {
   free(tEpiRowLoc);
   free(tEpiColLoc);
 
-  time5= get_time();
+  time5 = std::chrono::steady_clock::now();
 
   //  DISPLAY TIMING
 
   printf("Time spent in different stages of the application:\n");
+  auto etime1 = std::chrono::duration_cast<std::chrono::nanoseconds>(time1 - time0).count();
+  auto etime2 = std::chrono::duration_cast<std::chrono::nanoseconds>(time2 - time1).count();
+  auto etime3 = std::chrono::duration_cast<std::chrono::nanoseconds>(time3 - time2).count();
+  auto etime4 = std::chrono::duration_cast<std::chrono::nanoseconds>(time4 - time3).count();
+  auto etime5 = std::chrono::duration_cast<std::chrono::nanoseconds>(time5 - time4).count();
+  auto etime  = std::chrono::duration_cast<std::chrono::nanoseconds>(time5 - time0).count();
+
   printf("%15.12f s, %15.12f : READ INITIAL VIDEO FRAME\n",
-      (FP) (time1-time0) / 1000000, (FP) (time1-time0) / (FP) (time5-time0) * 100);
+         etime1 * 1e-9, etime1 * 100.0 / etime);
   printf("%15.12f s, %15.12f : READ COMMAND LINE PARAMETERS\n",
-      (FP) (time2-time1) / 1000000, (FP) (time2-time1) / (FP) (time5-time0) * 100);
+         etime2 * 1e-9, etime2 * 100.0 / etime);
   printf("%15.12f s, %15.12f : READ INPUTS FROM FILE\n",
-      (FP) (time3-time2) / 1000000, (FP) (time3-time2) / (FP) (time5-time0) * 100);
+         etime3 * 1e-9, etime3 * 100.0 / etime);
   printf("%15.12f s, %15.12f : GPU ALLOCATION, COPYING, COMPUTATION\n",
-      (FP) (time4-time3) / 1000000, (FP) (time4-time3) / (FP) (time5-time0) * 100);
+         etime4 * 1e-9, etime4 * 100.0 / etime);
   printf("%15.12f s, %15.12f : GPU KERNELS\n",
-      (FP) (kernelTime) / 1000000, (FP) (kernelTime) / (FP) (time5-time0) * 100);
+         kernelTime * 1e-9, kernelTime * 100.0  / etime);
   printf("%15.12f s, %15.12f : FREE MEMORY\n",
-      (FP) (time5-time4) / 1000000, (FP) (time5-time4) / (FP) (time5-time0) * 100);
+         etime5 * 1e-9, etime5 * 100.0 / etime);
   printf("Total time:\n");
-  printf("%15.12f s\n", (FP) (time5-time0) / 1000000);
+  printf("%15.12f s\n", etime * 1e-9);
+
+  //======================================================================================================================================================150
+  //  End
+  //======================================================================================================================================================150
+
+  //========================================================================================================================================================================================================200
+  //  End
+  //========================================================================================================================================================================================================200
+
 }

@@ -32,14 +32,12 @@ main:	./main.o \
 	./kernel/kernel.o \
 	./util/avi/avilib.o \
 	./util/avi/avimod.o \
-	./util/file/file.o \
-	./util/timer/timer.o 
+	./util/file/file.o
 	$(CC)	$(CFLAGS) ./main.o \
 		./kernel/kernel.o \
 		./util/avi/avilib.o \
 		./util/avi/avimod.o \
 		./util/file/file.o \
-		./util/timer/timer.o \
 		$(LDFLAGS) -o main
 
 # ======================================================================================================================================================150
@@ -49,7 +47,6 @@ main:	./main.o \
 ./main.o:	./main.h \
 	./main.cu
 	$(CC)	$(OUTPUT) $(KERNEL_DIM) ./main.cu \
-		-I./util/timer/ \
 		-I./util/file/ \
 		-c \
 		-o ./main.o 
@@ -85,16 +82,8 @@ main:	./main.o \
 	./util/file/file.c
 	$(CC)	$(CFLAGS) ./util/file/file.c \
 		-I./util/file \
-		-I./util/timer \
 		-c \
 		-o ./util/file/file.o 
-
-./util/timer/timer.o:	./util/timer/timer.h \
-	./util/timer/timer.c
-	$(CC)	$(CFLAGS) ./util/timer/timer.c \
-		-I./util/timer \
-		-c \
-		-o ./util/timer/timer.o 
 
 run: main
 	$(LAUNCHER) ./main 104
@@ -103,5 +92,4 @@ clean:
 	rm	-rf *.o main \
 		./kernel/*.o \
 		./util/avi/*.o \
-		./util/file/*.o \
-		./util/timer/*.o 
+		./util/file/*.o 

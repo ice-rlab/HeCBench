@@ -1,8 +1,8 @@
 #include <cuda.h>
+#include <chrono>
 #include "./../main.h"                // (in main directory)            needed to recognized input parameters
 #include "./../util/avi/avilib.h"          // (in directory)              needed by avi functions
 #include "./../util/avi/avimod.h"          // (in directory)              needed by avi functions
-#include "./../util/timer/timer.h"
 
 // CUDA kernel
 #include "kernel.h"
@@ -432,7 +432,7 @@ kernel_gpu_wrapper(  params_common common,
     //==================================================50
     //  launch kernel
     //==================================================50
-    uint64_t start_time = get_time();
+    auto start_time = std::chrono::steady_clock::now();
 
     hw<<<grids, threads>>>(
         frame_no,
@@ -474,8 +474,8 @@ kernel_gpu_wrapper(  params_common common,
           );
 
     cudaDeviceSynchronize();
-    uint64_t end_time = get_time();
-    kernel_time += end_time - start_time;
+    auto end_time = std::chrono::steady_clock::now();
+    kernel_time += std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count();
 
     // free frame after each loop iteration, since AVI library allocates memory for every frame fetched
     free(frame);
@@ -502,7 +502,6 @@ kernel_gpu_wrapper(  params_common common,
 #endif
 
   }
-  uint64_t end_time = get_time();
 
   cudaMemcpy(tEndoRowLoc, d_tEndoRowLoc, common.endo_mem * common.no_frames, cudaMemcpyDeviceToHost);
   cudaMemcpy(tEndoColLoc, d_tEndoColLoc, common.endo_mem * common.no_frames, cudaMemcpyDeviceToHost);

@@ -7,7 +7,7 @@ UNZIPFILE("${CMAKE_CURRENT_LIST_DIR}/../data/heartwall/heartwall.tar.bz")
 add_hecbench_benchmark(
     NAME heartwall
     MODEL cuda
-    SOURCES main.cu kernel/kernel.cu util/avi/avilib.c util/avi/avimod.c util/file/file.c util/timer/timer.c
+    SOURCES main.cu kernel/kernel.cu util/avi/avilib.c util/avi/avimod.c util/file/file.c
     CATEGORIES algorithms
-    INCLUDE_DIRS  ${INC_DIR}/avi ${INC_DIR}/file ${INC_DIR}/timer
+    INCLUDE_DIRS  ${INC_DIR}/avi ${INC_DIR}/file
 )

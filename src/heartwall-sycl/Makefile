@@ -79,23 +79,20 @@ main:./main.o \
           ./kernel/kernel.o \
           ./util/avi/avilib.o \
           ./util/avi/avimod.o \
-          ./util/file/file.o \
-          ./util/timer/timer.o 
+          ./util/file/file.o
 	$(CC)	$(CFLAGS) ./main.o \
 		./kernel/kernel.o \
 		./util/avi/avilib.o \
 		./util/avi/avimod.o \
 		./util/file/file.o \
-		./util/timer/timer.o \
 		$(LDFLAGS) -o main
 
 # ======================================================================================================================================================150
 #	MAIN FUNCTION
 # ======================================================================================================================================================150
 
-./main.o:./main.h ./main.c
-	$(CC)	$(OUTPUT) $(KERNEL_DIM) ./main.c \
-		-I./util/timer/ \
+./main.o:./main.h ./main.cpp
+	$(CC)	$(OUTPUT) $(KERNEL_DIM) ./main.cpp \
 		-I./util/file/ \
 		-c \
 		-o ./main.o 
@@ -120,22 +117,14 @@ main:./main.o \
 ./util/file/file.o:./util/file/file.h ./util/file/file.c
 	$(CC)	$(CFLAGS) ./util/file/file.c \
 		-I./util/file \
-		-I./util/timer \
 		-c \
 		-o ./util/file/file.o 
-
-./util/timer/timer.o:./util/timer/timer.h ./util/timer/timer.c
-	$(CC)	$(CFLAGS) ./util/timer/timer.c \
-		-I./util/timer \
-		-c \
-		-o ./util/timer/timer.o 
 
 clean:
 	rm	-rf *.o main \
 		./kernel/*.o \
 		./util/avi/*.o \
-		./util/file/*.o \
-		./util/timer/*.o 
+		./util/file/*.o
 
 run: main
 	$(LAUNCHER) ./main 104
