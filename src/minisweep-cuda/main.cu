@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <sys/time.h>
 #include <string.h>
+#include <chrono>
 #include <cuda.h>
 #include "utils.h"
 #include "utils.cu"
@@ -229,10 +229,10 @@ int main( int argc, char** argv )
   cudaMalloc((void**)&d_vslocal, n );
 
   // measure host and device execution time
-  double ktime = 0.0;
-  double k_start, k_end;
+  long ktime = 0;
+  std::chrono::steady_clock::time_point kstart, kend;
 
-  double t1 = get_time();
+  auto t1 = std::chrono::steady_clock::now();
 
   for(int iteration=0; iteration<niterations; ++iteration )
   {
@@ -300,7 +300,7 @@ int main( int argc, char** argv )
 
       if (is_first_step) {
         
-        k_start = get_time();
+        kstart = std::chrono::steady_clock::now();
 
         cudaMemset(d_vo, 0, v_size);  // must reset output for each iteration
 
@@ -360,8 +360,8 @@ int main( int argc, char** argv )
       if (is_last_step) { 
 
         cudaDeviceSynchronize();
-        k_end = get_time();
-        ktime += k_end - k_start;
+        kend = std::chrono::steady_clock::now();
+        ktime += std::chrono::duration_cast<std::chrono::nanoseconds>(kend - kstart).count();
 
         cudaMemcpy(vo, d_vo, v_size, cudaMemcpyDeviceToHost);
 #ifdef DEBUG
@@ -374,8 +374,8 @@ int main( int argc, char** argv )
     vo = vi;
     vi = tmp;
   }
-  double t2 = get_time();
-  double time = t2 - t1;
+  auto t2 = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count();
 
   // Verification (input and output vectors are equal) 
   P normsq = (P)0;
@@ -390,14 +390,14 @@ int main( int argc, char** argv )
       * Quantities_flops_per_solve( dims )
       + Dimensions_size_state( dims, NU ) * NOCTANT * 2. * dims.na );
 
-  double floprate_h = (time <= 0) ?  0 : flops / (time * 1e-6) / 1e9;
-  double floprate_d = (ktime <= 0) ?  0 : flops / (ktime * 1e-6) / 1e9;
+  double floprate_h = (time <= 0) ?  0 : flops / time;
+  double floprate_d = (ktime <= 0) ?  0 : flops / ktime;
 
   printf( "Normsq result: %.8e  diff: %.3e  verify: %s  host time: %.3f (s) kernel time: %.3f (s)\n",
           normsq,
           normsqdiff,
           normsqdiff== (P)0 ? "PASS" : "FAIL",
-          time * 1e-6, ktime * 1e-6);
+          time * 1e-9, ktime * 1e-9);
 
   printf( "GF/s (host): %.3f\nGF/s (device): %.3f\n", floprate_h, floprate_d );
 
