@@ -5,8 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
-#include <sys/time.h>
+#include <chrono>
 #include <iostream>
 
 #include "heap.h"
@@ -61,7 +60,5 @@ void rebuild_temps(float *aT, int R, int ar);
 void insert_temps(float *aavex, float *aT, int *R, int *ar, int ains);
 
 void rebuild_indices(findex_t* arts, findex_t *atrs, int ar) ;
-
-double rtclock();
 
 #endif

@@ -139,7 +139,7 @@ int main(int argc, char **argv){
     hipMalloc(&apcga[k], (N/4) * sizeof(uint64_t));
     hipMalloc(&apcgb[k], (N/4) * sizeof(uint64_t));
     // offset and sequence approach
-    hipLaunchKernelGGL(kernel_gpupcg_setup, prng_grid, prng_block, 0, 0, apcga[k], apcgb[k], N/4, 
+    kernel_gpupcg_setup<<<prng_grid, prng_block>>>(apcga[k], apcgb[k], N/4, 
         seed + N/4 * k, k);
   }
 
@@ -171,9 +171,9 @@ int main(int argc, char **argv){
   FILE *fw = fopen("trials.dat", "w");
   fprintf(fw, "trial  av  min max\n");
 
-  double total_ktime = 0.0;
+  long total_ktime = 0;
 
-  double start = rtclock();
+  auto start = std::chrono::steady_clock::now();
 
   /* each adaptation iteration improves the temperature distribution */
   for (int trial = 0; trial < atrials; ++trial) {
@@ -182,7 +182,7 @@ int main(int argc, char **argv){
     printf("[trial %i of %i]\n", trial+1, atrials); fflush(stdout);
 
     /* distribution for H */
-    hipLaunchKernelGGL(kernel_reset_random_gpupcg, lgrid, lblock, 0, 0, dH, N, apcga[0], apcgb[0]);  
+    kernel_reset_random_gpupcg<<<lgrid, lblock>>>(dH, N, apcga[0], apcgb[0]);  
     
     /* reset ex counters */
     reset_array(aex, rpool, 0.0f);
@@ -194,41 +194,41 @@ int main(int argc, char **argv){
     seed = gpu_pcg32_random_r(&hpcgs, &hpcgi);
 
     for (int k = 0; k < ar; ++k) {
-      hipLaunchKernelGGL(HIP_KERNEL_NAME(kernel_reset<int>), lgrid, lblock , 0, 0, mdlat[k], N, 1);
-      cudaCheckErrors("kernel: reset spins up");
+      kernel_reset<int><<< lgrid, lblock >>>(mdlat[k], N, 1);
+      hipCheckErrors("kernel: reset spins up");
 
-      hipLaunchKernelGGL(kernel_gpupcg_setup, prng_grid, prng_block, 0, 0, apcga[k], apcgb[k], N/4, 
+      kernel_gpupcg_setup<<<prng_grid, prng_block>>>(apcga[k], apcgb[k], N/4, 
           seed + (uint64_t)(N/4 * k), k);
-      cudaCheckErrors("kernel: prng reset");
+      hipCheckErrors("kernel: prng reset");
     }
 
     /* parallel tempering */
     for(int p = 0; p < apts; ++p) {
 
-      double k_start = rtclock();
+      auto kstart = std::chrono::steady_clock::now();
 
       /* metropolis simulation */
       for(int i = 0; i < ams; ++i) {
         for(int k = 0; k < ar; ++k) {
 
-          hipLaunchKernelGGL(kernel_metropolis, mcgrid, mcblock , 0, 0, N, L, mdlat[k], dH, h, 
+          kernel_metropolis<<< mcgrid, mcblock >>>(N, L, mdlat[k], dH, h, 
               -2.0f/aT[atrs[k].i], apcga[k], apcgb[k], 0);
         }
 
         hipDeviceSynchronize();
-        cudaCheckErrors("mcmc: kernel metropolis white launch");
+        hipCheckErrors("mcmc: kernel metropolis white launch");
 
         for(int k = 0; k < ar; ++k) {
-          hipLaunchKernelGGL(kernel_metropolis, mcgrid, mcblock , 0, 0, N, L, mdlat[k], dH, h, 
+          kernel_metropolis<<< mcgrid, mcblock >>>(N, L, mdlat[k], dH, h, 
               -2.0f/aT[atrs[k].i], apcga[k], apcgb[k], 1);
         }
 
         hipDeviceSynchronize();
-        cudaCheckErrors("mcmc: kernel metropolis black launch");
+        hipCheckErrors("mcmc: kernel metropolis black launch");
       }
 
-      double k_end = rtclock();
-      total_ktime += k_end - k_start; 
+      auto kend = std::chrono::steady_clock::now();
+      total_ktime += std::chrono::duration_cast<std::chrono::nanoseconds>(kend - kstart).count();
 
       /* compute energies for exchange */
       // adapt_ptenergies(s, tid);
@@ -241,9 +241,9 @@ int main(int argc, char **argv){
 
       for(int k = 0; k < ar; ++k){
         /* launch reduction kernel for k-th replica */
-        hipLaunchKernelGGL(HIP_KERNEL_NAME(kernel_redenergy<float>), grid, block, 0, 0, mdlat[k], L, dE + k, dH, h);
+        kernel_redenergy<float><<<grid, block>>>(mdlat[k], L, dE + k, dH, h);
         hipDeviceSynchronize();
-        cudaCheckErrors("kernel_redenergy");
+        hipCheckErrors("kernel_redenergy");
       }
       hipMemcpy(aexE, dE, ar*sizeof(float), hipMemcpyDeviceToHost);
 
@@ -323,9 +323,10 @@ int main(int argc, char **argv){
 
   } // atrials
 
-  double end = rtclock();
-  printf("Total trial time %.2f secs\n", end-start);
-  printf("Total kernel time (metropolis simulation) %.2f secs\n", total_ktime);
+  auto end = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+  printf("Total kernel time (metropolis simulation) %.2f secs\n", total_ktime * 1e-9);
+  printf("Total trial time %.2f secs\n", time * 1e-9);
 
   fclose(fw);
   for(int i = 0; i < rpool; ++i) {

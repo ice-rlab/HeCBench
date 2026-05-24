@@ -164,9 +164,9 @@ int main(int argc, char **argv){
   FILE *fw = fopen("trials.dat", "w");
   fprintf(fw, "trial  av  min max\n");
 
-  double total_ktime = 0.0;
+  long total_ktime = 0;
 
-  double start = rtclock();
+  auto start = std::chrono::steady_clock::now();
 
   /* each adaptation iteration improves the temperature distribution */
   for (int trial = 0; trial < atrials; ++trial) {
@@ -193,7 +193,7 @@ int main(int argc, char **argv){
     /* parallel tempering */
     for(int p = 0; p < apts; ++p) {
 
-      double k_start = rtclock();
+      auto kstart = std::chrono::steady_clock::now();
 
       /* metropolis simulation */
       for(int i = 0; i < ams; ++i) {
@@ -207,8 +207,8 @@ int main(int argc, char **argv){
         }
       }
 
-      double k_end = rtclock();
-      total_ktime += k_end - k_start; 
+      auto kend = std::chrono::steady_clock::now();
+      total_ktime += std::chrono::duration_cast<std::chrono::nanoseconds>(kend - kstart).count();
 
       /* compute energies for exchange */
       // adapt_ptenergies(s, tid);
@@ -295,9 +295,10 @@ int main(int argc, char **argv){
 
   } // atrials
 
-  double end = rtclock();
-  printf("Total trial time %.2f secs\n", end-start);
-  printf("Total kernel time (metropolis simulation) %.2f secs\n", total_ktime);
+  auto end = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+  printf("Total kernel time (metropolis simulation) %.2f secs\n", total_ktime * 1e-9);
+  printf("Total trial time %.2f secs\n", time * 1e-9);
 
   fclose(fw);
 }
