@@ -1,14 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <float.h>
 #include <limits.h>
 #include <math.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <float.h>
-#include <time.h>
-#include <sys/time.h>
-#include <iostream>
+#include <chrono>
 #include <cuda.h>
 
 #define BLOCK_X 16
@@ -32,20 +28,6 @@
 #define FLT_MAX 3.40282347e+38
 #endif
 
-
-/*****************************
- * Returns a long int representing the time
- *****************************/
-long long get_time() {
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  return (tv.tv_sec * 1000000) +tv.tv_usec;
-}
-
-/* Returns the number of seconds elapsed between the two specified times */
-float elapsed_time(long long start_time, long long end_time) {
-  return (float) (end_time - start_time) / (1000 * 1000);
-}
 
 /**
  * Generates a uniformly distributed random number using the provided seed and GCC's settings for the Linear Congruential Generator (LCG)
@@ -363,7 +345,7 @@ int particleFilter(unsigned char * I, int IszX, int IszY, int Nfr, int * seed, i
     yj[x] = ye;
   }
 
-  long long offload_start = get_time();
+  auto start = std::chrono::steady_clock::now();
 
   int num_blocks = (Nparticles + BLOCK_SIZE - 1) / BLOCK_SIZE;
 #ifdef DEBUG
@@ -400,9 +382,9 @@ int particleFilter(unsigned char * I, int IszX, int IszY, int Nfr, int * seed, i
   //cudaMemcpy(ind_GPU, ind, countOnes*Nparticles*sizeof(int), cudaMemcpyHostToDevice);
 
   cudaMalloc((void**)&weights_GPU, Nparticles*sizeof(float));
-  // memory copy is not needed, because all the weights are updated first before 
-  // they are read in the likelihood kernel. 
-  // Just be consistent with the original cuda version 
+  // memory copy is not needed, because all the weights are updated first before
+  // they are read in the likelihood kernel.
+  // Just be consistent with the original cuda version
   cudaMemcpy(weights_GPU, weights, Nparticles*sizeof(float), cudaMemcpyHostToDevice);
 
   cudaMalloc((void**)&I_GPU, IszX * IszY * Nfr * sizeof(unsigned char));
@@ -418,8 +400,8 @@ int particleFilter(unsigned char * I, int IszX, int IszY, int Nfr, int * seed, i
   cudaMemcpy(objxy_GPU, objxy, 2*countOnes*sizeof(int), cudaMemcpyHostToDevice);
 
   cudaDeviceSynchronize();
-  long long start = get_time();
-  
+  auto kstart = std::chrono::steady_clock::now();
+
   for (int k = 1; k < Nfr; k++) {
     /****************** L I K E L I H O O D ************************************/
     kernel_likelihood<<<num_blocks, BLOCK_SIZE>>>(
@@ -463,9 +445,9 @@ int particleFilter(unsigned char * I, int IszX, int IszY, int Nfr, int * seed, i
   } //end loop
 
   cudaDeviceSynchronize();
-  long long end = get_time();
-  printf("Average execution time of kernels: %f (s)\n",
-         elapsed_time(start, end) / (Nfr-1));
+  auto kend = std::chrono::steady_clock::now();
+  auto ktime = std::chrono::duration_cast<std::chrono::nanoseconds>(kend - kstart).count();
+  printf("Average execution time of kernels: %f (s)\n", ktime * 1e-9 / (Nfr-1));
 
   cudaMemcpy(arrayX, arrayX_GPU, Nparticles*sizeof(float), cudaMemcpyDeviceToHost);
   cudaMemcpy(arrayY, arrayY_GPU, Nparticles*sizeof(float), cudaMemcpyDeviceToHost);
@@ -485,8 +467,9 @@ int particleFilter(unsigned char * I, int IszX, int IszY, int Nfr, int * seed, i
   cudaFree(weights_GPU);
   cudaFree(I_GPU);
 
-  long long offload_end = get_time();
-  printf("Device offloading time: %f (s)\n", elapsed_time(offload_start, offload_end));
+  auto end = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+  printf("Device offloading time: %f (s)\n", time * 1e-9);
 
   xe = 0;
   ye = 0;
@@ -582,7 +565,7 @@ int main(int argc, char * argv[]) {
   }
 
 #ifdef DEBUG
-  printf("dimX=%d dimY=%d Nfr=%d Nparticles=%d\n", 
+  printf("dimX=%d dimY=%d Nfr=%d Nparticles=%d\n",
       IszX, IszY, Nfr, Nparticles);
 #endif
 
@@ -594,19 +577,21 @@ int main(int argc, char * argv[]) {
 
   //calloc matrix
   unsigned char * I = (unsigned char *) calloc(IszX * IszY * Nfr, sizeof(unsigned char));
-  long long start = get_time();
+  auto start = std::chrono::steady_clock::now();
 
   //call video sequence
   videoSequence(I, IszX, IszY, Nfr, seed);
-  long long endVideoSequence = get_time();
-  printf("VIDEO SEQUENCE TOOK %f (s)\n", elapsed_time(start, endVideoSequence));
+  auto stop = std::chrono::steady_clock::now();
 
   //call particle filter
   particleFilter(I, IszX, IszY, Nfr, seed, Nparticles);
-  long long endParticleFilter = get_time();
-  printf("PARTICLE FILTER TOOK %f (s)\n", elapsed_time(endVideoSequence, endParticleFilter));
+  auto end = std::chrono::steady_clock::now();
 
-  printf("ENTIRE PROGRAM TOOK %f (s)\n", elapsed_time(start, endParticleFilter));
+  auto vs_time = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start).count();
+  auto pf_time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - stop).count();
+
+  printf("VIDEO SEQUENCE TOOK %f (s)\n", vs_time * 1e-9);
+  printf("PARTICLE FILTER TOOK %f (s)\n", pf_time * 1e-9);
 
   free(seed);
   free(I);
