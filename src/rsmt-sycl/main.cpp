@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <sys/time.h>
+#include <chrono>
 #include <sycl/sycl.hpp>
 #include "utils.h"
 
@@ -430,8 +430,7 @@ static void computeRSMT(sycl::queue &q,
   q.wait();
 
   // start time
-  timeval start, end;
-  gettimeofday(&start, NULL);
+  auto start = std::chrono::steady_clock::now();
 
   // process nets
   q.memset(d_xout, -1, 2 * size * sizeof(ctype));
@@ -484,8 +483,9 @@ static void computeRSMT(sycl::queue &q,
 
   // end time
   q.wait();
-  gettimeofday(&end, NULL);
-  const double runtime = end.tv_sec - start.tv_sec + (end.tv_usec - start.tv_usec) / 1000000.0;
+  auto end = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+  const double runtime = time * 1e-9;
   printf("compute time: %.6f s\n", runtime);
   printf("throughput: %.f nets/sec\n", numnets / runtime);
 

@@ -1,6 +1,5 @@
 #include <stdio.h>
-#include <sys/time.h>
-#include <hip/hip_runtime.h>
+#include <chrono>
 #include "utils.h"
 
 static __device__ int currpos1 = 0;
@@ -338,8 +337,7 @@ static void computeRSMT(const int* const __restrict__ idxin,
 
   // start time
   GPU_CHECK(hipDeviceSynchronize());
-  timeval start, end;
-  gettimeofday(&start, NULL);
+  auto start = std::chrono::steady_clock::now();
 
   // process nets
   GPU_CHECK(hipMemset(d_xout, -1, 2 * size * sizeof(ctype)));
@@ -360,8 +358,9 @@ static void computeRSMT(const int* const __restrict__ idxin,
 
   // end time
   GPU_CHECK(hipDeviceSynchronize());
-  gettimeofday(&end, NULL);
-  const double runtime = end.tv_sec - start.tv_sec + (end.tv_usec - start.tv_usec) / 1000000.0;
+  auto end = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+  const double runtime = time * 1e-9;
   printf("compute time: %.6f s\n", runtime);
   printf("throughput: %.f nets/sec\n", numnets / runtime);
 
