@@ -139,7 +139,7 @@ void run_event_based_simulation(Input in, SimulationData SD, unsigned long * vha
   hipMalloc((void**)&verification_d, sizeof(int) * in.lookups);
   hipMemcpy(verification_d, verification_host, sizeof(int) * in.lookups, hipMemcpyHostToDevice);
 
-  double start = get_time();
+  auto start = std::chrono::steady_clock::now();
 
   ////////////////////////////////////////////////////////////////////////////////
   // XS Lookup Simulation Loop
@@ -161,8 +161,9 @@ void run_event_based_simulation(Input in, SimulationData SD, unsigned long * vha
       SD.max_num_nucs );
 
   hipDeviceSynchronize();
-  double stop = get_time();
-  printf("Kernel initialization, compilation, and execution took %.2lf seconds.\n", stop-start);
+  auto stop = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start).count();
+  printf("Kernel initialization, compilation, and execution took %.2lf seconds.\n", time * 1e-9);
 
   hipMemcpy(verification_host, verification_d, sizeof(int) * in.lookups, hipMemcpyDeviceToHost);
 
@@ -181,7 +182,7 @@ void run_event_based_simulation(Input in, SimulationData SD, unsigned long * vha
     verification_scalar += verification_host[i];
 
   *vhash_result = verification_scalar;
-  *kernel_time = stop-start;
+  *kernel_time = time * 1e-9;
 }
 
 template <class INT_T, class DOUBLE_T, class WINDOW_T, class POLE_T >

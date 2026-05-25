@@ -12,7 +12,7 @@
 // line argument.
 ////////////////////////////////////////////////////////////////////////////////////
 
-void run_event_based_simulation(Input in, SimulationData SD, unsigned long * vhash_result, double * kernel_init_time )
+void run_event_based_simulation(Input in, SimulationData SD, unsigned long * vhash_result, double * kernel_time )
 {
   printf("Beginning event based simulation...\n");
 
@@ -64,8 +64,7 @@ void run_event_based_simulation(Input in, SimulationData SD, unsigned long * vha
   ////////////////////////////////////////////////////////////////////////////////
   // Define Device Kernel
   ////////////////////////////////////////////////////////////////////////////////
-  // Timers
-  double start = get_time();
+  auto start = std::chrono::steady_clock::now();
 
   // queue a kernel to be run, as a lambda
   q.submit([&](sycl::handler &cgh) {
@@ -121,9 +120,9 @@ void run_event_based_simulation(Input in, SimulationData SD, unsigned long * vha
     });
   }).wait();
 
-  double stop = get_time();
-  *kernel_init_time = stop-start;
-  printf("Kernel initialization, compilation, and execution took %.2lf seconds.\n", stop-start);
+  auto stop = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start).count();
+  printf("Kernel initialization, compilation, and execution took %.2lf seconds.\n", time * 1e-9);
   
   q.memcpy(verification_host, verification_d, sizeof(int) * in.lookups).wait();
 
@@ -142,6 +141,7 @@ void run_event_based_simulation(Input in, SimulationData SD, unsigned long * vha
     verification_scalar += verification_host[i];
 
   *vhash_result = verification_scalar;
+  *kernel_time = time * 1e-9;
 }
 
 template <class INT_T, class DOUBLE_T, class WINDOW_T, class POLE_T >

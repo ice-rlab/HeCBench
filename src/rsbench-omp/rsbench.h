@@ -1,12 +1,12 @@
 #include<stdio.h>
 #include<stdlib.h>
-#include<sys/time.h>
 #include<math.h>
 #include<string.h>
 #include<stdint.h>
 #include<float.h>
-#include<omp.h>
 #include<assert.h>
+#include<chrono>
+#include<omp.h>
 
 #define OPENMP
 

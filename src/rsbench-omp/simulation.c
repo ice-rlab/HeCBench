@@ -32,7 +32,7 @@ void run_event_based_simulation(Input input, SimulationData data, unsigned long 
                           map(to:input) \
                           map(tofrom:verification)
   {
-    double start = get_time();
+    auto start = std::chrono::steady_clock::now();
 
     #pragma omp target teams distribute parallel for reduction(+:verification)
     for( int i = 0; i < input.lookups; i++ )
@@ -74,9 +74,10 @@ void run_event_based_simulation(Input input, SimulationData data, unsigned long 
       verification += max_idx+1;
     }
 
-    double stop = get_time();
-    printf("Kernel initialization, compilation, and execution took %.2lf seconds.\n", stop-start);
-    *kernel_time = stop-start;
+    auto stop = std::chrono::steady_clock::now();
+    auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start).count();
+    printf("Kernel initialization, compilation, and execution took %.2lf seconds.\n", time * 1e-9);
+    *kernel_time = time * 1e-9;
   }
 
   *vhash_result = verification;
