@@ -3,26 +3,13 @@
 #include "./main.h"
 #include "./util/graphics/graphics.h"
 #include "./util/graphics/resize.h"
-#include "./util/timer/timer.h"
 
 int main(int argc, char* argv []) {
 
-  // time
-  long long time0;
-  long long time1;
-  long long time2;
-  long long time3;
-  long long time4;
-  long long time5;
-  long long time6;
-  long long time7;
-  long long time8;
-  long long time9;
-  long long time10;
-  long long time11;
-  long long time12;
+  // times
+  std::chrono::steady_clock::time_point time[13];
 
-  time0 = get_time();
+  time[0] = std::chrono::steady_clock::now();
 
   // inputs image, input paramenters
   FP* image_ori;                      // originalinput image
@@ -70,7 +57,7 @@ int main(int argc, char* argv []) {
   FP varROI;
   FP q0sqr;
 
-  time1 = get_time();
+  time[1] = std::chrono::steady_clock::now();
 
   if(argc != 5){
     printf("Usage: %s <repeat> <lambda> <number of rows> <number of columns>\n", argv[0]);
@@ -83,7 +70,7 @@ int main(int argc, char* argv []) {
     Nc = atoi(argv[4]);
   }
 
-  time2 = get_time();
+  time[2] = std::chrono::steady_clock::now();
 
   //================================================================================80
   //   READ IMAGE (SIZE OF IMAGE HAS TO BE KNOWN)
@@ -101,7 +88,7 @@ int main(int argc, char* argv []) {
     return -1; // exit on file i/o error
   }
 
-  time3 = get_time();
+  time[3] = std::chrono::steady_clock::now();
 
   //================================================================================80
   //   RESIZE IMAGE (ASSUMING COLUMN MAJOR STORAGE OF image_orig)
@@ -113,7 +100,7 @@ int main(int argc, char* argv []) {
 
   resize(image_ori, image_ori_rows, image_ori_cols, image, Nr, Nc, 1);
 
-  time4 = get_time();
+  time[4] = std::chrono::steady_clock::now();
 
   //   SETUP
 
@@ -197,14 +184,14 @@ int main(int argc, char* argv []) {
   blocks_work_size = blocks_x;
   global_work_size = blocks_work_size * local_work_size; // define the number of blocks in the grid
 
-  time5 = get_time();
+  time[5] = std::chrono::steady_clock::now();
 
   //================================================================================80
   //   COPY INPUT TO GPU
   //================================================================================80
   q.memcpy(d_I, image, mem_size).wait();
 
-  time6 = get_time();
+  time[6] = std::chrono::steady_clock::now();
 
   sycl::range<1> gws (global_work_size);
   sycl::range<1> lws (local_work_size);
@@ -216,7 +203,7 @@ int main(int argc, char* argv []) {
     });
   }).wait();
 
-  time7 = get_time();
+  time[7] = std::chrono::steady_clock::now();
 
   for (iter=0; iter<niter; iter++){ // do for the number of iterations input parameter
     // Prepare kernel
@@ -291,7 +278,7 @@ int main(int argc, char* argv []) {
 
   q.wait();
 
-  time8 = get_time();
+  time[8] = std::chrono::steady_clock::now();
 
   //   Compress Kernel - SCALE IMAGE UP FROM 0-1 TO 0-255 AND COMPRESS
 
@@ -302,11 +289,11 @@ int main(int argc, char* argv []) {
     });
   }).wait();
 
-  time9 = get_time();
+  time[9] = std::chrono::steady_clock::now();
 
   q.memcpy(image, d_I, mem_size).wait();
 
-  time10 = get_time();
+  time[10] = std::chrono::steady_clock::now();
 
   //   WRITE OUTPUT IMAGE TO FILE
 
@@ -318,7 +305,7 @@ int main(int argc, char* argv []) {
       1,
       255);
 
-  time11 = get_time();
+  time[11] = std::chrono::steady_clock::now();
 
   //   FREE MEMORY
 
@@ -342,35 +329,43 @@ int main(int argc, char* argv []) {
   sycl::free(d_sums, q);
   sycl::free(d_sums2, q);
 
-  time12 = get_time();
+  time[12] = std::chrono::steady_clock::now();
 
   //  DISPLAY TIMING
 
   printf("Time spent in different stages of the application:\n");
+  long etime[13];
+  for (int i = 0; i <= 11; i++) {
+    etime[i] = std::chrono::duration_cast<std::chrono::nanoseconds>(time[i+1] - time[i]).count();
+  }
+  etime[12] = std::chrono::duration_cast<std::chrono::nanoseconds>(time[12] - time[0]).count();
+
   printf("%15.12f s, %15.12f %% : SETUP VARIABLES\n",
-      (float) (time1-time0) / 1000000, (float) (time1-time0) / (float) (time12-time0) * 100);
+         etime[0] * 1e-9, etime[0] * 100.0 / etime[12]);
   printf("%15.12f s, %15.12f %% : READ COMMAND LINE PARAMETERS\n",
-      (float) (time2-time1) / 1000000, (float) (time2-time1) / (float) (time12-time0) * 100);
+         etime[1] * 1e-9, etime[1] * 100.0 / etime[12]);
   printf("%15.12f s, %15.12f %% : READ IMAGE FROM FILE\n",
-      (float) (time3-time2) / 1000000, (float) (time3-time2) / (float) (time12-time0) * 100);
-  printf("%15.12f s, %15.12f %% : RESIZE IMAGE\n",
-      (float) (time4-time3) / 1000000, (float) (time4-time3) / (float) (time12-time0) * 100);
+         etime[2] * 1e-9, etime[2] * 100.0 / etime[12]);
+  printf("%15.12f s, %15.12f %% : RESIZE IMAGE\n", 
+         etime[3] * 1e-9, etime[3] * 100.0 / etime[12]);
   printf("%15.12f s, %15.12f %% : GPU DRIVER INIT, CPU/GPU SETUP, MEMORY ALLOCATION\n",
-      (float) (time5-time4) / 1000000, (float) (time5-time4) / (float) (time12-time0) * 100);
+         etime[4] * 1e-9, etime[4] * 100.0 / etime[12]);
   printf("%15.12f s, %15.12f %% : COPY DATA TO CPU->GPU\n",
-      (float) (time6-time5) / 1000000, (float) (time6-time5) / (float) (time12-time0) * 100);
-  printf("%15.12f s, %15.12f %% : EXTRACT IMAGE\n",
-      (float) (time7-time6) / 1000000, (float) (time7-time6) / (float) (time12-time0) * 100);
-  printf("%15.12f s, %15.12f %% : COMPUTE (%d iterations)\n",
-      (float) (time8-time7) / 1000000, (float) (time8-time7) / (float) (time12-time0) * 100, niter);
-  printf("%15.12f s, %15.12f %% : COMPRESS IMAGE\n",
-      (float) (time9-time8) / 1000000, (float) (time9-time8) / (float) (time12-time0) * 100);
-  printf("%15.12f s, %15.12f %% : COPY DATA TO GPU->CPU\n",
-      (float) (time10-time9) / 1000000, (float) (time10-time9) / (float) (time12-time0) * 100);
-  printf("%15.12f s, %15.12f %% : SAVE IMAGE INTO FILE\n",
-      (float) (time11-time10) / 1000000, (float) (time11-time10) / (float) (time12-time0) * 100);
-  printf("%15.12f s, %15.12f %% : FREE MEMORY\n",
-      (float) (time12-time11) / 1000000, (float) (time12-time11) / (float) (time12-time0) * 100);
+         etime[5] * 1e-9, etime[5] * 100.0 / etime[12]);
+  printf("%15.12f s, %15.12f %% : EXTRACT IMAGE\n", 
+         etime[6] * 1e-9, etime[6] * 100.0 / etime[12]);
+  printf("%15.12f s, %15.12f %% : COMPUTE (%d iterations)\n", 
+         etime[7] * 1e-9, etime[7] * 100.0 / etime[12], niter);
+  printf("%15.12f s, %15.12f %% : COMPRESS IMAGE\n", 
+         etime[8] * 1e-9, etime[8] * 100.0 / etime[12]);
+  printf("%15.12f s, %15.12f %% : COPY DATA TO GPU->CPU\n", 
+         etime[9] * 1e-9, etime[9] * 100.0 / etime[12]);
+  printf("%15.12f s, %15.12f %% : SAVE IMAGE INTO FILE\n", 
+         etime[10] * 1e-9, etime[10] * 100.0 / etime[12]);
+  printf("%15.12f s, %15.12f %% : FREE MEMORY\n", 
+         etime[11] * 1e-9, etime[11] * 100.0 / etime[12]);
   printf("Total time:\n");
-  printf("%.12f s\n", (float) (time12-time0) / 1000000);
+  printf("%.12f s\n", etime[12] * 1e-9);
+
+  return 0;
 }

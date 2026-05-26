@@ -47,7 +47,7 @@ endif
 $(program): $(obj) Makefile
 	$(CC) $(CFLAGS) $(obj) -o $@ $(LDFLAGS)
 
-%.o: %.cu graphics.c resize.c timer.c \
+%.o: %.cu graphics.c resize.c \
 	extract_kernel.cu prepare_kernel.cu \
 	reduce_kernel.cu srad_kernel.cu srad2_kernel.cu compress_kernel.cu
 	$(CC) $(CFLAGS) -c $< -o $@

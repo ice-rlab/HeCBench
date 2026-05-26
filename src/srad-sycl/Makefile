@@ -68,12 +68,10 @@ endif
 
 $(program):	./main.o \
 	./util/graphics/graphics.o \
-	./util/graphics/resize.o \
-	./util/timer/timer.o
+	./util/graphics/resize.o
 	$(CC) $(CFLAGS)	./main.o \
 		./util/graphics/graphics.o \
 		./util/graphics/resize.o \
-		./util/timer/timer.o \
 		-lm \
 		$(LDFLAGS) -o $(program)
 
@@ -101,14 +99,8 @@ $(program):	./main.o \
 		-o ./util/graphics/resize.o \
 		-O3
 
-./util/timer/timer.o:./util/timer/timer.h ./util/timer/timer.c
-	$(CC)	./util/timer/timer.c \
-		-c \
-		-o ./util/timer/timer.o \
-		-O3
-
 clean:
-	rm -f ./*.o $(program) *.pgm ./util/graphics/*.o ./util/timer/*.o
+	rm -f ./*.o $(program) *.pgm ./util/graphics/*.o
 
 run: $(program)
 	$(LAUNCHER) ./$(program) 1000 0.5 502 458

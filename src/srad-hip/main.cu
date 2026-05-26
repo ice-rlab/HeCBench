@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <chrono>
 #include <hip/hip_runtime.h>
 
 #include "main.h"
@@ -32,26 +33,13 @@
 #include "compress_kernel.cu"
 #include "graphics.c"
 #include "resize.c"
-#include "timer.c"
 
 int main(int argc, char *argv []) {
 
-  // time
-  long long time0;
-  long long time1;
-  long long time2;
-  long long time3;
-  long long time4;
-  long long time5;
-  long long time6;
-  long long time7;
-  long long time8;
-  long long time9;
-  long long time10;
-  long long time11;
-  long long time12;
+  // times
+  std::chrono::steady_clock::time_point time[13];
 
-  time0 = get_time();
+  time[0] = std::chrono::steady_clock::now();
 
   // inputs image, input paramenters
   fp* image_ori;  // original input image
@@ -121,7 +109,7 @@ int main(int argc, char *argv []) {
   fp* d_I; // input IMAGE on DEVICE
   fp* d_c;
 
-  time1 = get_time();
+  time[1] = std::chrono::steady_clock::now();
 
   //================================================================================80
   //   GET INPUT PARAMETERS
@@ -138,7 +126,7 @@ int main(int argc, char *argv []) {
     Nc = atoi(argv[4]);
   }
 
-  time2 = get_time();
+  time[2] = std::chrono::steady_clock::now();
 
   //================================================================================80
   //   READ IMAGE (SIZE OF IMAGE HAS TO BE KNOWN)
@@ -157,7 +145,7 @@ int main(int argc, char *argv []) {
     return -1;
   }
 
-  time3 = get_time();
+  time[3] = std::chrono::steady_clock::now();
 
   //================================================================================80
   //   RESIZE IMAGE (ASSUMING COLUMN MAJOR STORAGE OF image_orig)
@@ -169,7 +157,7 @@ int main(int argc, char *argv []) {
 
   resize(image_ori, image_ori_rows, image_ori_cols, image, Nr, Nc, 1);
 
-  time4 = get_time();
+  time[4] = std::chrono::steady_clock::now();
 
   //================================================================================80
   //   SETUP
@@ -254,7 +242,7 @@ int main(int argc, char *argv []) {
   blocks.x = blocks_x;               // define the number of blocks in the grid
   blocks.y = 1;
 
-  time5 = get_time();
+  time[5] = std::chrono::steady_clock::now();
 
   //================================================================================80
   //   COPY INPUT TO GPU
@@ -262,18 +250,18 @@ int main(int argc, char *argv []) {
 
   hipMemcpy(d_I, image, mem_size, hipMemcpyHostToDevice);
 
-  time6 = get_time();
+  time[6] = std::chrono::steady_clock::now();
 
   //================================================================================80
   //   SCALE IMAGE DOWN FROM 0-255 TO 0-1 AND EXTRACT
   //================================================================================80
 
-  hipLaunchKernelGGL(extract, blocks, threads, 0, 0, Ne, d_I);
+  extract<<<blocks, threads>>>(Ne, d_I);
 
   //checkCUDAError("extract");
   hipDeviceSynchronize();
 
-  time7 = get_time();
+  time[7] = std::chrono::steady_clock::now();
 
   //================================================================================80
   //   COMPUTATION
@@ -288,7 +276,7 @@ int main(int argc, char *argv []) {
   // fflush(NULL);
 
     // execute square kernel
-    hipLaunchKernelGGL(prepare, blocks, threads, 0, 0, Ne, d_I, d_sums, d_sums2);
+    prepare<<<blocks, threads>>>(Ne, d_I, d_sums, d_sums2);
 
     //checkCUDAError("prepare");
 
@@ -303,7 +291,7 @@ int main(int argc, char *argv []) {
       //checkCUDAError("before reduce");
 
       // run kernel
-      hipLaunchKernelGGL(reduce, blocks2, threads, 0, 0, Ne, no, mul, d_sums, d_sums2);
+      reduce<<<blocks2, threads>>>(Ne, no, mul, d_sums, d_sums2);
       //checkCUDAError("reduce");
 
       // update execution parameters
@@ -340,7 +328,7 @@ int main(int argc, char *argv []) {
     q0sqr = varROI / meanROI2;                // gets standard deviation of ROI
 
     // execute srad kernel
-    hipLaunchKernelGGL(srad, blocks, threads, 0, 0, 
+    srad<<<blocks, threads>>>(
                   lambda,                // SRAD coefficient 
                   Nr,                    // # of rows in input image
                   Nc,                    // # of columns in input image
@@ -360,7 +348,7 @@ int main(int argc, char *argv []) {
     //checkCUDAError("srad");
 
     // execute srad2 kernel
-    hipLaunchKernelGGL(srad2, blocks, threads, 0, 0, 
+    srad2<<<blocks, threads>>>(
                   lambda,                // SRAD coefficient 
                   Nr,                    // # of rows in input image
                   Nc,                    // # of columns in input image
@@ -383,18 +371,18 @@ int main(int argc, char *argv []) {
 
   // printf("\n");
 
-  time8 = get_time();
+  time[8] = std::chrono::steady_clock::now();
 
   //================================================================================80
   //   SCALE IMAGE UP FROM 0-1 TO 0-255 AND COMPRESS
   //================================================================================80
 
-  hipLaunchKernelGGL(compress, blocks, threads, 0, 0, Ne, d_I);
+  compress<<<blocks, threads>>>(Ne, d_I);
 
   //checkCUDAError("compress");
   hipDeviceSynchronize();
 
-  time9 = get_time();
+  time[9] = std::chrono::steady_clock::now();
 
   //================================================================================80
   //   COPY RESULTS BACK TO CPU
@@ -404,7 +392,7 @@ int main(int argc, char *argv []) {
 
   //checkCUDAError("copy back");
 
-  time10 = get_time();
+  time[10] = std::chrono::steady_clock::now();
 
   //================================================================================80
   //   WRITE IMAGE AFTER PROCESSING
@@ -418,7 +406,7 @@ int main(int argc, char *argv []) {
           1,
           255);
 
-  time11 = get_time();
+  time[11] = std::chrono::steady_clock::now();
 
   //================================================================================80
   //  DEALLOCATE
@@ -444,39 +432,45 @@ int main(int argc, char *argv []) {
   hipFree(d_sums);
   hipFree(d_sums2);
 
-  time12 = get_time();
+  time[12] = std::chrono::steady_clock::now();
 
   //================================================================================80
   //  DISPLAY TIMING
   //================================================================================80
 
   printf("Time spent in different stages of the application:\n");
+  long etime[13];
+  for (int i = 0; i <= 11; i++) {
+    etime[i] = std::chrono::duration_cast<std::chrono::nanoseconds>(time[i+1] - time[i]).count();
+  }
+  etime[12] = std::chrono::duration_cast<std::chrono::nanoseconds>(time[12] - time[0]).count();
+
   printf("%15.12f s, %15.12f %% : SETUP VARIABLES\n",
-      (float) (time1-time0) / 1000000, (float) (time1-time0) / (float) (time12-time0) * 100);
+         etime[0] * 1e-9, etime[0] * 100.0 / etime[12]);
   printf("%15.12f s, %15.12f %% : READ COMMAND LINE PARAMETERS\n",
-      (float) (time2-time1) / 1000000, (float) (time2-time1) / (float) (time12-time0) * 100);
+         etime[1] * 1e-9, etime[1] * 100.0 / etime[12]);
   printf("%15.12f s, %15.12f %% : READ IMAGE FROM FILE\n",
-      (float) (time3-time2) / 1000000, (float) (time3-time2) / (float) (time12-time0) * 100);
+         etime[2] * 1e-9, etime[2] * 100.0 / etime[12]);
   printf("%15.12f s, %15.12f %% : RESIZE IMAGE\n", 
-      (float) (time4-time3) / 1000000, (float) (time4-time3) / (float) (time12-time0) * 100);
+         etime[3] * 1e-9, etime[3] * 100.0 / etime[12]);
   printf("%15.12f s, %15.12f %% : GPU DRIVER INIT, CPU/GPU SETUP, MEMORY ALLOCATION\n",
-      (float) (time5-time4) / 1000000, (float) (time5-time4) / (float) (time12-time0) * 100);
+         etime[4] * 1e-9, etime[4] * 100.0 / etime[12]);
   printf("%15.12f s, %15.12f %% : COPY DATA TO CPU->GPU\n",
-      (float) (time6-time5) / 1000000, (float) (time6-time5) / (float) (time12-time0) * 100);
+         etime[5] * 1e-9, etime[5] * 100.0 / etime[12]);
   printf("%15.12f s, %15.12f %% : EXTRACT IMAGE\n", 
-      (float) (time7-time6) / 1000000, (float) (time7-time6) / (float) (time12-time0) * 100);
+         etime[6] * 1e-9, etime[6] * 100.0 / etime[12]);
   printf("%15.12f s, %15.12f %% : COMPUTE (%d iterations)\n", 
-      (float) (time8-time7) / 1000000, (float) (time8-time7) / (float) (time12-time0) * 100, niter);
+         etime[7] * 1e-9, etime[7] * 100.0 / etime[12], niter);
   printf("%15.12f s, %15.12f %% : COMPRESS IMAGE\n", 
-      (float) (time9-time8) / 1000000, (float) (time9-time8) / (float) (time12-time0) * 100);
+         etime[8] * 1e-9, etime[8] * 100.0 / etime[12]);
   printf("%15.12f s, %15.12f %% : COPY DATA TO GPU->CPU\n", 
-      (float) (time10-time9) / 1000000, (float) (time10-time9) / (float) (time12-time0) * 100);
+         etime[9] * 1e-9, etime[9] * 100.0 / etime[12]);
   printf("%15.12f s, %15.12f %% : SAVE IMAGE INTO FILE\n", 
-      (float) (time11-time10) / 1000000, (float) (time11-time10) / (float) (time12-time0) * 100);
+         etime[10] * 1e-9, etime[10] * 100.0 / etime[12]);
   printf("%15.12f s, %15.12f %% : FREE MEMORY\n", 
-      (float) (time12-time11) / 1000000, (float) (time12-time11) / (float) (time12-time0) * 100);
+         etime[11] * 1e-9, etime[11] * 100.0 / etime[12]);
   printf("Total time:\n");
-  printf("%.12f s\n", (float) (time12-time0) / 1000000);
+  printf("%.12f s\n", etime[12] * 1e-9);
 
   return 0;
 }
