@@ -48,7 +48,7 @@ endif
 $(program): $(obj)
 	$(CC) $(CFLAGS) $(obj) -o $@ $(LDFLAGS)
 
-%.o: %.cu kernels.cu data45.h
+%.o: %.cu kernels.h data45.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:

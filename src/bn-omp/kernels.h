@@ -3,32 +3,36 @@
 #include <stdio.h>
 #include "data45.h"
 
+#pragma omp declare target
 void Dincr(int *bit,int n);
 void DincrS(int *bit,int n);
 bool D_getState(int parN,int *sta,int time);
 void D_findComb(int* comb, int l, int n);
 int D_findindex(int *arr, int size);
 int D_C(int n, int a);
+#pragma omp end declare target
 
 
 void genScoreKernel(const int sizepernode,
                     float *D_localscore, 
                     const int *D_data,
-                    const float *D_LG,
-                    sycl::nd_item<1> &item)
+                    const float *D_LG)
 {
-  int id = item.get_global_id(0);
-  int node,index;
-  bool flag;
-  int parent[5]={0};
-  int pre[NODE_N]={0};
-  int state[5]={0};
-  int i,j,parN=0,tmp,t;
-  int t1=0,t2=0;
-  float ls=0;
-  int Nij[STATE_N]={0};
+  #pragma omp target teams distribute parallel for thread_limit(256)
+  for (int id = 0; id<sizepernode * NODE_N; id++) 
+    D_localscore[id] = 0.f;
 
-  if(id<sizepernode){
+  #pragma omp target teams distribute parallel for thread_limit(256) 
+  for (int id = 0; id<sizepernode; id++) {
+    int node,index;
+    bool flag;
+    int parent[5]={0};
+    int pre[NODE_N]={0};
+    int state[5]={0};
+    int i,j,parN=0,tmp,t;
+    int t1=0,t2=0;
+    float ls=0;
+    int Nij[STATE_N]={0};
 
     D_findComb(parent,id,NODE_N-1);
 
@@ -85,6 +89,7 @@ void genScoreKernel(const int sizepernode,
       }
     }
   }
+  #pragma omp target update from (D_localscore[0:NODE_N * sizepernode])
 }
 
 void computeKernel(const int taskperthr,
@@ -95,94 +100,104 @@ void computeKernel(const int taskperthr,
                    const int total, 
                    float *D_Score,
                    int *D_resP,
-                   float* lsinblock,
-                   sycl::nd_item<1> &item)
+                   const int blocknum)
 {
-  const unsigned int tid = item.get_local_id(0);
-  const unsigned int bid = item.get_group(0);
-  const unsigned int id = bid * 256 + tid;
+  #pragma omp target teams num_teams(blocknum) thread_limit(256)
+  {
+    float lsinblock[256];
+    #pragma omp parallel 
+    {
+      const unsigned int tid = omp_get_thread_num();
+      const unsigned int bid = omp_get_team_num();
+      const unsigned int id = bid * 256 + tid;
 
-  int posN=1,i,index,t,tmp;
-  int pre[NODE_N]={0};
-  int parN=0;
-  int bestparent[4]={0},parent[5]={-1};
-  float bestls=-999999999999999.f,ls;
+      int posN=1,i,index,t,tmp;
+      int pre[NODE_N]={0};
+      int parN=0;
+      int bestparent[4]={0},parent[5]={-1};
+      float bestls=-999999999999999.f,ls;
 
-  for(i=0;i<NODE_N;i++){
-    if(D_parent[i]==1){pre[posN++]=i;}
-  }
-
-  for(i=0;i<taskperthr&&((id*taskperthr+i)<total);i++){
-
-    D_findComb(parent,id*taskperthr+i,posN);
-
-    for(parN=0;parN<4;parN++){
-      if(parent[parN]<0) break;
-      if(pre[parent[parN]]>node) parent[parN]=pre[parent[parN]];
-      else                       parent[parN]=pre[parent[parN]]+1;
-    }
-
-    for(tmp=parN;tmp>0;tmp--){
-      parent[tmp]=parent[tmp-1];
-    }
-    parent[0]=0;
-
-    index=D_findindex(parent,parN);
-    index+=sizepernode*node;
-
-    ls=D_localscore[index];
-
-    if(ls>bestls){
-      bestls=ls;
-      for(tmp=0;tmp<4;tmp++)
-        bestparent[tmp]=parent[tmp+1];
-    }
-  }
-
-  lsinblock[tid]=bestls;
-
-  item.barrier(sycl::access::fence_space::local_space);
-
-  for(i=128;i>=1;i/=2){
-
-    if(tid<i){
-      if(lsinblock[tid+i]>lsinblock[tid]&&lsinblock[tid+i]<0){
-        lsinblock[tid]=lsinblock[tid+i];
-        lsinblock[tid+i]=(float)(tid+i);
-      }
-      else if(lsinblock[tid+i]<lsinblock[tid]&&lsinblock[tid]<0){
-        lsinblock[tid+i]=(float)tid;
-      }
-      else if(lsinblock[tid]>0&&lsinblock[tid+i]<0){
-        lsinblock[tid]=lsinblock[tid+i];
-        lsinblock[tid+i]=(float)(tid+i);
-      }
-      else if(lsinblock[tid]<0&&lsinblock[tid+i]>0){
-        lsinblock[tid+i]=(float)tid;
+      for(i=0;i<NODE_N;i++){
+        if(D_parent[i]==1){pre[posN++]=i;}
       }
 
-    }
-    item.barrier(sycl::access::fence_space::local_space);
-  }
+      for(i=0;i<taskperthr&&((id*taskperthr+i)<total);i++){
 
-  if(tid==0){
-    D_Score[bid]=lsinblock[0];
-    t=0;
-    for(i=0;i<7&&t<128&&t>=0;i++){
-      t=(int)lsinblock[(int)sycl::powr(2.f,(float)i)+t];
-    }
-    lsinblock[0]=(float)t;
-  }
+        D_findComb(parent,id*taskperthr+i,posN);
 
-  item.barrier(sycl::access::fence_space::local_space);
+        for(parN=0;parN<4;parN++){
+          if(parent[parN]<0) break;
+          if(pre[parent[parN]]>node) parent[parN]=pre[parent[parN]];
+          else                       parent[parN]=pre[parent[parN]]+1;
+        }
 
-  if(tid==(int)lsinblock[0]){
-    for(i=0;i<4;i++){
-      D_resP[bid*4+i]=bestparent[i];
+        for(tmp=parN;tmp>0;tmp--){
+          parent[tmp]=parent[tmp-1];
+        }
+        parent[0]=0;
+
+        index=D_findindex(parent,parN);
+        index+=sizepernode*node;
+
+        ls=D_localscore[index];
+
+        if(ls>bestls){
+          bestls=ls;
+          for(tmp=0;tmp<4;tmp++)
+            bestparent[tmp]=parent[tmp+1];
+        }
+      }
+
+      lsinblock[tid]=bestls;
+
+      #pragma omp barrier
+
+      for(i=128;i>=1;i/=2){
+
+        if(tid<i){
+          if(lsinblock[tid+i]>lsinblock[tid]&&lsinblock[tid+i]<0){
+            lsinblock[tid]=lsinblock[tid+i];
+            lsinblock[tid+i]=(float)(tid+i);
+          }
+          else if(lsinblock[tid+i]<lsinblock[tid]&&lsinblock[tid]<0){
+            lsinblock[tid+i]=(float)tid;
+          }
+          else if(lsinblock[tid]>0&&lsinblock[tid+i]<0){
+            lsinblock[tid]=lsinblock[tid+i];
+            lsinblock[tid+i]=(float)(tid+i);
+          }
+          else if(lsinblock[tid]<0&&lsinblock[tid+i]>0){
+            lsinblock[tid+i]=(float)tid;
+          }
+
+        }
+        #pragma omp barrier
+      }
+
+      #pragma omp barrier
+
+      if(tid==0){
+        D_Score[bid]=lsinblock[0];
+        t=0;
+        for(i=0;i<7&&t<128&&t>=0;i++){
+          t=(int)lsinblock[(int)powf(2.f,(float)i)+t];
+        }
+        lsinblock[0]=(float)t;
+      }
+
+      #pragma omp barrier
+
+      if(tid==(int)lsinblock[0]){
+        for(i=0;i<4;i++){
+          D_resP[bid*4+i]=bestparent[i];
+        }
+      }
     }
   }
 }
 
+
+#pragma omp declare target
 void Dincr(int *bit,int n){
 
   while(n<=NODE_N){
@@ -228,6 +243,7 @@ bool D_getState(int parN,int *sta,int time){
 
 }
 
+
 void D_findComb(int* comb, int l, int n)
 {
   const int len = 4;
@@ -262,6 +278,8 @@ void D_findComb(int* comb, int l, int n)
 }
 
 int D_findindex(int *arr, int size){  //reminder: arr[0] has to be 0 && size == array size-1 && index start from 0
+  if (size == 0) return 0;
+
   int i,j,index=0;
 
   for(i=1;i<size;i++){
@@ -295,5 +313,6 @@ int D_C(int n, int a){
 
   return res;
 }
+#pragma omp end declare target
 
 #endif

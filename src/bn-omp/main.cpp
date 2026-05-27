@@ -4,7 +4,7 @@
 #include <string.h>
 #include <chrono>
 #include <omp.h>
-#include "kernels.cpp"
+#include "kernels.h"
 
 const int HIGHEST = 3;
 const int ITER = 100;

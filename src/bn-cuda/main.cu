@@ -5,7 +5,7 @@
 #include <float.h>
 #include <chrono>
 #include <cuda.h>
-#include "kernels.cu"
+#include "kernels.h"
 
 const int HIGHEST = 3;
 const int ITER = 100;
