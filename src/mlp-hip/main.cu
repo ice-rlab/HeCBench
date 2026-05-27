@@ -167,7 +167,8 @@ int main(int argc, char* argv[])
   GPU_CHECK(hipMalloc(&lt_workspace, lt_workspace_size));
 
   // hipBLASLt handle (global variable)
-  assert(hipblasLtCreate(&handle) == HIPBLAS_STATUS_SUCCESS);
+  [[maybe_unused]] hipblasStatus_t lt_create_status = hipblasLtCreate(&handle);
+  assert(lt_create_status == HIPBLAS_STATUS_SUCCESS);
 
   long time = 0;
 
@@ -256,6 +257,7 @@ int main(int argc, char* argv[])
   GPU_CHECK(hipFree(lt_workspace));
   free_mlp_space(w_ptr, num_layers);
   free_mlp_space(b_ptr, num_layers);
-  assert(hipblasLtDestroy(handle) == HIPBLAS_STATUS_SUCCESS);
+  [[maybe_unused]] hipblasStatus_t lt_destroy_status = hipblasLtDestroy(handle);
+  assert(lt_destroy_status == HIPBLAS_STATUS_SUCCESS);
   return error;
 }
