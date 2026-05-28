@@ -26,9 +26,25 @@ BZip2: gerbil
 
 This quick start uses [uv](https://docs.astral.sh/uv/) to install [DVC](https://dvc.org/) with [s3](https://aws.amazon.com/s3/) remote storage support. After installation, the data is pulled and checked out using the `dvc pull` command.
 
+### Install [uv](https://docs.astral.sh/uv/)
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+### To add $HOME/.local/bin to your PATH, either restart your shell or run:
+
+```bash
+    source $HOME/.local/bin/env (sh, bash, zsh)
+    source $HOME/.local/bin/env.fish (fish)
+```
+
+### Install [DVC](https://dvc.org/) with [s3](https://aws.amazon.com/s3/)
+```bash
 uv tool install dvc[s3]
+```
+
+### Pull benchmark data
+```bash
 dvc pull
 ```
 
