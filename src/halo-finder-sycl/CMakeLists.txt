@@ -16,7 +16,6 @@ add_hecbench_benchmark(
             Timings.cxx
             Timer.cxx
             bigchunk.c
-            dims-local.c
             BGQStep16.c
     CATEGORIES algorithms
     INCLUDE_DIRS dfft
