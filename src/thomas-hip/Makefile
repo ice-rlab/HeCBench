@@ -24,7 +24,7 @@ obj = $(source:.cu=.o)
 #===============================================================================
 
 # Standard Flags
-CFLAGS := $(EXTRA_CFLAGS) -std=c++17 -Wall
+CFLAGS := $(EXTRA_CFLAGS) -std=c++17 -Wall -I../thomas-cuda
 
 # Linker Flags
 LDFLAGS = 
@@ -47,7 +47,8 @@ endif
 $(program): $(obj) Makefile
 	$(CC) $(CFLAGS) $(obj) -o $@ $(LDFLAGS)
 
-%.o: %.cu cuThomasBatch.h ThomasMatrix.hpp utils.hpp Makefile
+%.o: %.cu cuThomasBatch.h \
+          ../thomas-cuda/ThomasMatrix.hpp ../thomas-cuda/utils.hpp Makefile
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
