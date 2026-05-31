@@ -35,8 +35,6 @@ int mlp_gemm_dnnl(
     bool use_bias,
     bool use_relu) {
 
-  using namespace dnnl;
-
   // Memory descriptors. The cuBLASLt example stores buffers in column-major
   // layout: input is [ifeat x batch], weight is [ifeat x ofeat], output is
   // [ofeat x batch]. Viewed row-major, input becomes [batch x ifeat] and
@@ -44,39 +42,39 @@ int mlp_gemm_dnnl(
   // buffer's row-major view is [ofeat x ifeat]; we declare the oneDNN dims
   // as (ifeat, ofeat) and use format_tag::ba so the underlying strides
   // match the column-major memory.
-  auto inp_md    = memory::desc({batch, ifeat}, memory::data_type::f32, memory::format_tag::ab);
-  auto weight_md = memory::desc({ifeat, ofeat}, memory::data_type::f32, memory::format_tag::ba);
-  auto out_md    = memory::desc({batch, ofeat}, memory::data_type::f32, memory::format_tag::ab);
-  auto bias_md   = memory::desc({1, ofeat},     memory::data_type::f32, memory::format_tag::ab);
+  auto inp_md    = dnnl::memory::desc({batch, ifeat}, dnnl::memory::data_type::f32, dnnl::memory::format_tag::ab);
+  auto weight_md = dnnl::memory::desc({ifeat, ofeat}, dnnl::memory::data_type::f32, dnnl::memory::format_tag::ba);
+  auto out_md    = dnnl::memory::desc({batch, ofeat}, dnnl::memory::data_type::f32, dnnl::memory::format_tag::ab);
+  auto bias_md   = dnnl::memory::desc({1, ofeat},     dnnl::memory::data_type::f32, dnnl::memory::format_tag::ab);
 
   // USM memory objects
-  auto inp_mem    = sycl_interop::make_memory(inp_md,    engine, sycl_interop::memory_kind::usm,
-                                              const_cast<scalar_t*>(input));
-  auto weight_mem = sycl_interop::make_memory(weight_md, engine, sycl_interop::memory_kind::usm,
-                                              const_cast<scalar_t*>(weight));
-  auto out_mem    = sycl_interop::make_memory(out_md,    engine, sycl_interop::memory_kind::usm, output);
+  auto inp_mem    = dnnl::sycl_interop::make_memory(inp_md, engine, dnnl::sycl_interop::memory_kind::usm,
+                                                    const_cast<scalar_t*>(input));
+  auto weight_mem = dnnl::sycl_interop::make_memory(weight_md, engine, dnnl::sycl_interop::memory_kind::usm,
+                                                    const_cast<scalar_t*>(weight));
+  auto out_mem    = dnnl::sycl_interop::make_memory(out_md, engine, dnnl::sycl_interop::memory_kind::usm, output);
 
   // Post-op for ReLU epilogue
-  primitive_attr matmul_attr;
+  dnnl::primitive_attr matmul_attr;
   if (use_relu) {
-    post_ops po;
-    po.append_eltwise(algorithm::eltwise_relu, 0.0f, 0.0f);
+    dnnl::post_ops po;
+    po.append_eltwise(dnnl::algorithm::eltwise_relu, 0.0f, 0.0f);
     matmul_attr.set_post_ops(po);
   }
 
   // Primitive descriptor
-  matmul::primitive_desc matmul_pd;
+  dnnl::matmul::primitive_desc matmul_pd;
   if (use_bias) {
-    matmul_pd = matmul::primitive_desc(engine, inp_md, weight_md, bias_md, out_md, matmul_attr);
+    matmul_pd = dnnl::matmul::primitive_desc(engine, inp_md, weight_md, bias_md, out_md, matmul_attr);
   } else {
-    matmul_pd = matmul::primitive_desc(engine, inp_md, weight_md, out_md, matmul_attr);
+    matmul_pd = dnnl::matmul::primitive_desc(engine, inp_md, weight_md, out_md, matmul_attr);
   }
 
-  auto matmul_prim = matmul(matmul_pd);
+  auto matmul_prim = dnnl::matmul(matmul_pd);
 
   if (use_bias) {
-    auto bias_mem = sycl_interop::make_memory(bias_md, engine, sycl_interop::memory_kind::usm,
-                                              const_cast<scalar_t*>(bias));
+    auto bias_mem = dnnl::sycl_interop::make_memory(bias_md, engine, dnnl::sycl_interop::memory_kind::usm,
+                                                    const_cast<scalar_t*>(bias));
     matmul_prim.execute(stream, {
         {DNNL_ARG_SRC,     inp_mem},
         {DNNL_ARG_WEIGHTS, weight_mem},
