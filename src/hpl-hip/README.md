@@ -19,6 +19,11 @@ export LD_LIBRARY_PATH=../../src/cuda/:$LD_LIBRARY_PATH <br />
 export LD_LIBRARY_PATH=$HOME/lapack/build_lapack_32:$LD_LIBRARY_PATH <br />
 mpirun -n 1 ./xhpl <br />
 
+# Note <br />
+Running as root is discouraged as any mistake or bug can result in catastrophic damage to the OS file system. Please proceed at your own risk <br />
+export OMPI_ALLOW_RUN_AS_ROOT=1
+export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
+mpirun -n 1 ./xhpl <br />
 
 ## view output <br />
 ### look for the GFlops measurement in the output log<br />
@@ -35,5 +40,4 @@ Finished      1 tests with the following results: <br />
               0 tests completed and failed residual checks, <br />
               0 tests skipped because of illegal input values. <br />
 -------------------------------------------------------------------------------- <br />
-
 
