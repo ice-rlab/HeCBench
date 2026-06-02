@@ -108,31 +108,14 @@ dpcpp_dgemm.o : dpcpp_dgemm.cpp
 #DEFINES += -DGOTO
 
 %.o: %.cpp
-ifeq ($(USE_NVIDIA_BACKEND),ON)
-	clang++ -O3 -fsycl -fsycl-targets=nvptx64-nvidia-cuda -c -fPIC $(DEFINES) $*.cpp -o $*.o -DUSE_CUBLAS
-else ifeq ($(USE_AMD_BACKEND),ON)
-	clang++ -O3 -fsycl -fsycl-targets=amd_gpu_gfx90a -c -fPIC $(DEFINES) $*.cpp -o $*.o -DUSE_HIPBLAS -D__HIP_PLATFORM_AMD__  
-else
-	icpx -fsycl -O3 -c -fPIC $(DEFINES) $*.cpp -o $*.o 
-endif	
+	icpx -fsycl -O3 -c -fPIC $(DEFINES) $*.cpp -o $*.o  \
+	-I$(LAdir)/include
 
 libdgemm.so.1.0.1: $(OBJS)
-ifeq ($(USE_NVIDIA_BACKEND),ON)
-	clang++ -O3 -std=c++17 -shared -Wl,-soname,libdgemm.so.1 -o libdgemm.so.1.0.1 $(OBJS) -lcudart -lsycl -lcuda -lcublas -fsycl -fsycl-targets=nvptx64-nvidia-cuda -L$(MKL_LIB) -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lpthread -liomp5 -lm -lstdc++  
-	ln -sf libdgemm.so.1.0.1 libdgemm.so.1.0
-	ln -sf libdgemm.so.1.0 libdgemm.so.1
-	ln -sf libdgemm.so.1 libdgemm.so
-else ifeq ($(USE_AMD_BACKEND),ON)
-	clang++ -O3 -std=c++17 -shared -Wl,-soname,libdgemm.so.1 -o libdgemm.so.1.0.1 $(OBJS) -lsycl -lhipblas -fsycl -fsycl-targets=amd_gpu_gfx90a
-	ln -sf libdgemm.so.1.0.1 libdgemm.so.1.0
-	ln -sf libdgemm.so.1.0 libdgemm.so.1
-	ln -sf libdgemm.so.1 libdgemm.so
-else
 	icpx -fsycl -fsycl-device-code-split=per_kernel -Wl, -lsycl -lOpenCL -lpthread -lm -ldl -fPIC -O2 -shared -Wl,-soname,libdgemm.so.1 -o libdgemm.so.1.0.1 $(OBJS) #-I$(SYCL_INCLUDE)
 	ln -sf libdgemm.so.1.0.1 libdgemm.so.1.0
 	ln -sf libdgemm.so.1.0 libdgemm.so.1
 	ln -sf libdgemm.so.1 libdgemm.so
-endif
 	
 clean:
 	rm -f $(OBJS) $(CUBINS) libdgemm.so.1.0.1 libdgemm.so.1.0 libdgemm.so.1 libdgemm.so
