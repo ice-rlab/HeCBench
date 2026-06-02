@@ -146,6 +146,7 @@ LAlib 	     = -L$(TOPdir)/src/cuda/ -ldgemm \
 		-L$(LAdir)/lib/ -lcblas \
 		-L$(LAdir)/lib -lblas \
 		-lm -lstdc++ \
+		-L$(ROCM_PATH)/lib/ -lamdhip64 \
 		-L$(ROCM_PATH)/lib/ -lhipblas
 #
 # ----------------------------------------------------------------------

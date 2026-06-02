@@ -108,11 +108,15 @@ DEFINES = -DMPI -g
 ROCM_PATH ?= /opt/rocm
 
 %.o: %.cpp
-	mpicc -O3 -c -fPIC $(DEFINES) $*.cpp -o $*.o -I$(ROCM_PATH)/include -D__HIP_PLATFORM_AMD__
+	mpicc -O3 -c -fPIC $(DEFINES) $*.cpp -o $*.o \
+	-I$(LAdir)/include \
+        -I$(ROCM_PATH)/include -D__HIP_PLATFORM_AMD__
 
 libdgemm.so.1.0.1: $(OBJS)
 
-	mpicc -O3 -shared -Wl,-soname,libdgemm.so.1 -o libdgemm.so.1.0.1 $(OBJS) -L$(ROCM_PATH)/lib -lhipblas
+	mpicc -O3 -shared -Wl,-soname,libdgemm.so.1 -o libdgemm.so.1.0.1 $(OBJS) \
+        -L$(ROCM_PATH)/lib -lamdhip64 \
+        -L$(ROCM_PATH)/lib -lhipblas
 	ln -sf libdgemm.so.1.0.1 libdgemm.so.1.0
 	ln -sf libdgemm.so.1.0 libdgemm.so.1
 	ln -sf libdgemm.so.1 libdgemm.so
