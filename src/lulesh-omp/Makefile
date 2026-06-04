@@ -36,7 +36,7 @@ LDFLAGS =
 
 # Debug Flags
 ifeq ($(DEBUG),yes)
-  CFLAGS += -g
+  CFLAGS += -g -DDEBUG
   LDFLAGS  += -g
 endif
 
@@ -69,7 +69,7 @@ clean:
 	rm -rf $(program) $(obj)
 
 test: $(program)
-	./$(program) -i 1 -s 32 -r 11 -b 1 -c 1
+	$(LAUNCHER) ./$(program) -i 1 -s 32 -r 11 -b 1 -c 1
 
 run: $(program)
 	$(LAUNCHER) ./$(program) -i 100 -s 128 -r 11 -b 1 -c 1

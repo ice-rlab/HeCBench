@@ -149,7 +149,6 @@ notice, this list of conditions and the disclaimer (as noted below)
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <time.h>
 #include <unistd.h>
 #include <chrono>
 #include <climits>
@@ -1057,16 +1056,6 @@ int main(int argc, char *argv[])
   Index_t *elemRep = &locDom->m_elemRep[0];
   Index_t *elemElem = &locDom->m_elemElem[0];
 
-#ifdef VERIFY
-  std::mt19937 gen(19937);
-  std::uniform_real_distribution<> dis(0.1, 1);
-  for (int i = 0; i < numNode; i++) {
-    xd[i] = dis(gen);
-    yd[i] = dis(gen);
-    zd[i] = dis(gen);
-  }
-#endif
-
   Real_t *fx_elem = Allocate<Real_t>(numElem8) ;
   Real_t *fy_elem = Allocate<Real_t>(numElem8) ;
   Real_t *fz_elem = Allocate<Real_t>(numElem8) ;
@@ -1294,6 +1283,7 @@ int main(int argc, char *argv[])
       z_local[6] = z[nd6i];
       z_local[7] = z[nd7i];
 
+
       // Volume calculation involves extra work for numerical consistency
       CalcElemShapeFunctionDerivatives(x_local, y_local, z_local, B, &determ[k]);
 
@@ -1306,6 +1296,20 @@ int main(int argc, char *argv[])
           &fy_elem[k*8],
           &fz_elem[k*8] ) ;
     }
+
+#ifdef VERIFY
+    #pragma omp target update from (determ[0:numElem])
+
+#ifdef _OPENMP
+#pragma omp parallel for firstprivate(numElem)
+#endif
+    for ( Index_t k=0 ; k<numElem ; ++k ) {
+      if (determ[k] <= Real_t(0.0)) {
+        printf("determError: negative determ value @%d %f\n", k, determ[k]);
+      }
+    }
+#endif
+
 
 #pragma omp target teams distribute parallel for thread_limit(THREADS)
     for (Index_t gnode = 0; gnode < numNode; gnode++) {
@@ -1325,19 +1329,6 @@ int main(int argc, char *argv[])
       fx[gnode] = fx_tmp ;
       fy[gnode] = fy_tmp ;
       fz[gnode] = fz_tmp ;
-    }
-
-    // check for negative element volume on the host
-
-#pragma omp target update from (determ[0:numElem])
-
-#ifdef _OPENMP
-#pragma omp parallel for firstprivate(numElem)
-#endif
-    for ( Index_t k=0 ; k<numElem ; ++k ) {
-      if (determ[k] <= Real_t(0.0)) {
-        exit(VolumeError);
-      }
     }
 
     //=================================================================================
@@ -1415,7 +1406,7 @@ int main(int argc, char *argv[])
       }
     }
 
-#ifdef VERIFY
+#ifdef DEBUG
 #pragma omp target update from (determ[0:numElem])
 #pragma omp target update from (dvdx[0:numElem8])
 #pragma omp target update from (dvdy[0:numElem8])
@@ -1433,10 +1424,12 @@ int main(int argc, char *argv[])
 
 #pragma omp target update from (vol_error[0:1])
 
+#ifdef VERIFY
     if (vol_error[0] >= 0){
       printf("VolumeError: negative volumn\n");
-      exit(VolumeError);
+      //exit(VolumeError);
     }
+#endif
 
     if ( hgcoef > Real_t(0.) ) {
 
@@ -1447,14 +1440,6 @@ int main(int argc, char *argv[])
       //Index_t len1 = numNode + 1;
       //Index_t *nodeElemCornerList = &domain.m_nodeElemCornerList[0];
       //Index_t len2 = nodeElemStart[numNode];
-
-#ifdef VERIFY
-      // initialize data for testing
-      for (int i = 0; i < numElem; i++) {
-        ss[i] = dis(gen);
-        elemMass[i] = dis(gen);
-      }
-#endif
 
 #pragma omp target teams distribute parallel for thread_limit(THREADS)
       for (Index_t i2 = 0; i2 < numElem; i2++) {
@@ -1657,12 +1642,12 @@ int main(int argc, char *argv[])
           fy_tmp += fy_elem[elem] ;
           fz_tmp += fz_elem[elem] ;
         }
-        fx[gnode] = fx_tmp ;
-        fy[gnode] = fy_tmp ;
-        fz[gnode] = fz_tmp ;
+        fx[gnode] += fx_tmp ;
+        fy[gnode] += fy_tmp ;
+        fz[gnode] += fz_tmp ;
       }
 
-#ifdef VERIFY
+#ifdef DEBUG
 #pragma omp target update from (fx[0:numNode])
 #pragma omp target update from (fy[0:numNode])
 #pragma omp target update from (fz[0:numNode])
@@ -1736,7 +1721,7 @@ int main(int argc, char *argv[])
       z[i] += zd[i] * deltaTime;
     }
 
-#ifdef VERIFY
+#ifdef DEBUG
 #pragma omp target update from (xd[0:numNode])
 #pragma omp target update from (yd[0:numNode])
 #pragma omp target update from (zd[0:numNode])
@@ -1875,14 +1860,17 @@ int main(int argc, char *argv[])
       }
     }
 
+#ifdef VERIFY
     #pragma omp target update from (vol_error[0:1])
     if (vol_error[0] >= 0){
       printf("VolumeError: negative volumn\n");
-      exit(VolumeError);
+      //exit(VolumeError);
     }
+#endif
 
-#ifdef VERIFY
     #pragma omp target update from (vdov[0:numElem])
+
+#ifdef DEBUG
     for ( Index_t k=0 ; k<numElem ; ++k )
     {
       printf("kintec: %d %f\n", k, vdov[k]);
@@ -2198,7 +2186,7 @@ int main(int argc, char *argv[])
       ql[i] = qlin  ;
     }
 
-#ifdef VERIFY
+#ifdef DEBUG
 #pragma omp target update from (qq[0:numElem])
 #pragma omp target update from (ql[0:numElem])
     for (int i = 0; i < numElem; i++) {
@@ -2206,6 +2194,7 @@ int main(int argc, char *argv[])
     }
 #endif
 
+#ifdef VERIFY
     /* Don't allow excessive artificial viscosity */
     Index_t idx = -1; 
     for (Index_t i=0; i<numElem; ++i) {
@@ -2217,15 +2206,16 @@ int main(int argc, char *argv[])
 
     if(idx >= 0) {
       printf("QStopError\n");
-      exit(QStopError);
+      //exit(QStopError);
     }
+#endif
 
     //=================================================
     //ApplyMaterialPropertiesForElems(domain, vnew) ;
     //=================================================
     Real_t  e_cut = domain.e_cut() ;
     Real_t  p_cut = domain.p_cut() ;
-    Real_t  ss4o3 = domain.ss4o3() ;
+    //Real_t  ss4o3 = domain.ss4o3() ;
     Real_t  q_cut = domain.q_cut() ;
     Real_t  v_cut = domain.v_cut() ;
 
@@ -2437,13 +2427,13 @@ int main(int argc, char *argv[])
       v[elem] = vnew_t ;
     }
 
-    //#pragma omp target update from (arealg[0:numElem])
+    #pragma omp target update from (arealg[0:numElem])
+    #pragma omp target update from (ss[0:numElem])
 
-#ifdef VERIFY
+#ifdef DEBUG
     #pragma omp target update from (q[0:numElem])
     #pragma omp target update from (p[0:numElem])
     #pragma omp target update from (e[0:numElem])
-    #pragma omp target update from (ss[0:numElem])
     #pragma omp target update from (v[0:numElem])
     for (int i = 0; i < numElem; i++) {
       printf("eos: %f %f %f %f %f\n", q[i], p[i], e[i], ss[i], v[i]);
