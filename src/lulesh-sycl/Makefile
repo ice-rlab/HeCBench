@@ -34,7 +34,7 @@ obj = $(source:.cc=.o)
 #===============================================================================
 
 # Standard Flags
-CFLAGS := $(EXTRA_CFLAGS) -std=c++17 -Wall -I../include -fsycl \
+CFLAGS := $(EXTRA_CFLAGS) -std=c++17 -Wall -fsycl \
           --gcc-toolchain=$(GCC_TOOLCHAIN)
 
 ifeq ($(VENDOR), AdaptiveCpp)
@@ -89,7 +89,7 @@ clean:
 test: $(program)
 	./$(program) -i 1 -s 32 -r 11 -b 1 -c 1
 
+# warmup and run
 run: $(program)
 	$(LAUNCHER) ./$(program) -i 100 -s 128 -r 11 -b 1 -c 1
-
-
+	$(LAUNCHER) ./$(program) -i 100 -s 128 -r 11 -b 1 -c 1
