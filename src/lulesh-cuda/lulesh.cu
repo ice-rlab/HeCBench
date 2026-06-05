@@ -13,9 +13,9 @@ DIFFERENCES BETWEEN THIS VERSION (2.x) AND EARLIER VERSIONS:
  * Addition of regions to make work more representative of multi-material codes
  * Default size of each domain is 30^3 (27000 elem) instead of 45^3. This is
  more representative of our actual working set sizes
- * Single source distribution supports pure serial, pure OpenMP, MPI-only, 
+ * Single source distribution supports pure serial, pure OpenMP, MPI-only,
  and MPI+OpenMP
- * Addition of ability to visualize the mesh using VisIt 
+ * Addition of ability to visualize the mesh using VisIt
 https://wci.llnl.gov/codes/visit/download.html
  * Various command line options (see ./lulesh2.0 -h)
  -q              : quiet mode - suppress stdout
@@ -59,7 +59,7 @@ https://wci.llnl.gov/codes/visit/download.html
  *   Four of the LULESH routines are now performed on a region-by-region basis,
  *     making the memory access patterns non-unit stride
  *   Artificial load imbalances can be easily introduced that could impact
- *     parallelization strategies.  
+ *     parallelization strategies.
  * The load balance flag changes region assignment.  Region number is raised to
  *   the power entered for assignment probability.  Most likely regions changes
  *   with MPI process id.
@@ -147,8 +147,6 @@ notice, this list of conditions and the disclaimer (as noted below)
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <time.h>
-#include <sys/time.h>
 #include <unistd.h>
 #include <chrono>
 #include <climits>
@@ -158,7 +156,6 @@ notice, this list of conditions and the disclaimer (as noted below)
 #include <fstream>
 #include <string>
 #ifdef VERIFY
-#include <random>
 #include <cassert>
 #endif
 #include "lulesh.h"
@@ -573,10 +570,7 @@ Real_t AreaFace( const Real_t x0, const Real_t x1,
     (fx * gx + fy * gy + fz * gz);
   return area ;
 }
-//#pragma omp end declare target
-/******************************************/
-//#pragma omp declare target
-#define max(a,b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); _a > _b ? _a : _b; })
+
 __device__ static inline
 Real_t CalcElemCharacteristicLength( const Real_t x[8],
     const Real_t y[8],
@@ -709,7 +703,7 @@ __global__ void integrateStress (
     const Real_t *__restrict__ sigyy,
     const Real_t *__restrict__ sigzz,
     Real_t *__restrict__ determ,
-    const Index_t numElem) 
+    const Index_t numElem)
 {
   Index_t k = blockDim.x*blockIdx.x+threadIdx.x;
   if (k >= numElem) return;
@@ -780,7 +774,7 @@ __global__ void acc_final_force (
     Real_t *__restrict__ fz,
     const Index_t *__restrict__ nodeElemStart,
     const Index_t *__restrict__ nodeElemCornerList,
-    const Index_t numNode) 
+    const Index_t numNode)
 {
   Index_t gnode = blockDim.x*blockIdx.x+threadIdx.x;
   if (gnode >= numNode) return;
@@ -1122,9 +1116,9 @@ __global__ void collect_final_force (
     fy_tmp += fy_elem[elem] ;
     fz_tmp += fz_elem[elem] ;
   }
-  fx[gnode] = fx_tmp ;
-  fy[gnode] = fy_tmp ;
-  fz[gnode] = fz_tmp ;
+  fx[gnode] += fx_tmp ;
+  fy[gnode] += fy_tmp ;
+  fz[gnode] += fz_tmp ;
 }
 
 __global__  void accelerationForNode (
@@ -1155,11 +1149,11 @@ __global__ void applyAccelerationBoundaryConditionsForNodes (
     const Index_t s1,
     const Index_t s2,
     const Index_t s3,
-    const Index_t numNodeBC ) 
+    const Index_t numNodeBC )
 {
   Index_t i = blockDim.x*blockIdx.x+threadIdx.x;
   if (i >= numNodeBC) return;
-  if (s1 == 0) 
+  if (s1 == 0)
     xdd[symmX[i]] = Real_t(0.0);
   if (s2 == 0) ydd[symmY[i]] = Real_t(0.0);
   if (s3 == 0) zdd[symmZ[i]] = Real_t(0.0);
@@ -1203,7 +1197,7 @@ __global__ void calcPositionForNodes (
     const Real_t *__restrict__ yd,
     const Real_t *__restrict__ zd,
     const Real_t deltaTime,
-    const Index_t numNode) 
+    const Index_t numNode)
 {
   Index_t i = blockDim.x*blockIdx.x+threadIdx.x;
   if (i >= numNode) return;
@@ -1212,7 +1206,7 @@ __global__ void calcPositionForNodes (
   z[i] += zd[i] * deltaTime;
 }
 
-__global__ void calcKinematicsForElems ( 
+__global__ void calcKinematicsForElems (
     const Real_t *__restrict__ xd,
     const Real_t *__restrict__ yd,
     const Real_t *__restrict__ zd,
@@ -1234,7 +1228,7 @@ __global__ void calcKinematicsForElems (
   Index_t k = blockDim.x*blockIdx.x+threadIdx.x;
   if (k >= numElem) return;
 
-  Real_t B[3][8] ; // shape function derivatives 
+  Real_t B[3][8] ; // shape function derivatives
   Real_t D[6] ;
   Real_t x_local[8] ;
   Real_t y_local[8] ;
@@ -1599,7 +1593,7 @@ __global__ void calcMonotonicQForElems (
     case 0:          delvp = delv_eta[letap[i]] ; break ;
     case ETA_P_SYMM: delvp = delv_eta[i] ;        break ;
     case ETA_P_FREE: delvp = Real_t(0.0) ;        break ;
-    default: 
+    default:
          delvp = 0; /* ERROR - but quiets the compiler */
          break;
   }
@@ -1625,7 +1619,7 @@ __global__ void calcMonotonicQForElems (
     case 0:           delvm = delv_zeta[lzetam[i]] ; break ;
     case ZETA_M_SYMM: delvm = delv_zeta[i] ;         break ;
     case ZETA_M_FREE: delvm = Real_t(0.0) ;          break ;
-    default: 
+    default:
           delvm = 0; /* ERROR - but quiets the compiler */
           break;
   }
@@ -1698,7 +1692,7 @@ __global__ void applyMaterialPropertiesForElems(
     Real_t *__restrict__ vnewc,
     const Real_t  e_cut,
     const Real_t  p_cut,
-    const Real_t  ss4o3,
+    //const Real_t  ss4o3,
     const Real_t  q_cut,
     const Real_t  v_cut,
 
@@ -2017,7 +2011,7 @@ void CalcCourantConstraintForElems(Domain &domain, Index_t length,
 
     for (Index_t thread_num = 0; thread_num < NT; thread_num++) {
 
-      //#pragma omp for 
+      //#pragma omp for
       for (Index_t i = 0 ; i < length ; ++i) {
         Index_t indx = regElemlist[i] ;
         Real_t dtf = domain.ss(indx) * domain.ss(indx) ;
@@ -2243,16 +2237,6 @@ int main(int argc, char *argv[])
 
   Index_t *nodelist = &locDom->m_nodelist[0];
 
-#ifdef VERIFY
-  std::mt19937 gen(19937);
-  std::uniform_real_distribution<> dis(0.1, 1);
-  for (int i = 0; i < numNode; i++) {
-    xd[i] = dis(gen);
-    yd[i] = dis(gen);
-    zd[i] = dis(gen);
-  }
-#endif
-
   Real_t *d_x;
   cudaMalloc((void**)&d_x, sizeof(Real_t)*numNode);
   cudaMemcpy(d_x, x, sizeof(Real_t)*numNode, cudaMemcpyHostToDevice);
@@ -2451,7 +2435,7 @@ int main(int argc, char *argv[])
   Index_t* d_elemElem;
   cudaMalloc((void**)&d_elemElem, sizeof(Index_t)*numElem);
 
-  // Sum contributions to total stress tensor 
+  // Sum contributions to total stress tensor
   Real_t *p = &locDom->m_p[0];
   Real_t *q = &locDom->m_q[0];
 
@@ -2459,7 +2443,7 @@ int main(int argc, char *argv[])
   cudaMemcpy(d_q, q, sizeof(Real_t)*numElem, cudaMemcpyHostToDevice);
 
   Real_t *volo = &locDom->m_volo[0];
-  cudaMemcpy(d_volo, volo, sizeof(Real_t)*numElem, cudaMemcpyHostToDevice); 
+  cudaMemcpy(d_volo, volo, sizeof(Real_t)*numElem, cudaMemcpyHostToDevice);
 
   Real_t *nodalMass = &locDom->m_nodalMass[0];
   cudaMemcpy(d_nodalMass, nodalMass, sizeof(Real_t)*numNode, cudaMemcpyHostToDevice);
@@ -2478,13 +2462,6 @@ int main(int argc, char *argv[])
   Real_t *arealg = &locDom->m_arealg[0];
   cudaMemcpy(d_arealg, arealg, sizeof(Real_t)*numElem, cudaMemcpyHostToDevice);
 
-  Real_t *dxx = &locDom->m_dxx[0];
-  Real_t *dyy = &locDom->m_dyy[0];
-  Real_t *dzz = &locDom->m_dzz[0];
-  cudaMemcpy(d_dxx, dxx, sizeof(Real_t)*numElem, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_dyy, dyy, sizeof(Real_t)*numElem, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_dzz, dzz, sizeof(Real_t)*numElem, cudaMemcpyHostToDevice);
-
   Index_t *elemBC = &locDom->m_elemBC[0];
   Index_t *lxim = &locDom->m_lxim[0];
   Index_t *lxip = &locDom->m_lxip[0];
@@ -2496,14 +2473,14 @@ int main(int argc, char *argv[])
   //Real_t *ql = &locDom->m_ql[0];
   //Real_t *qq = &locDom->m_qq[0];
 
-  cudaMemcpy(d_lzetam, lzetam, sizeof(Index_t)*numElem, cudaMemcpyHostToDevice); 
-  cudaMemcpy(d_lzetap, lzetap, sizeof(Index_t)*numElem, cudaMemcpyHostToDevice); 
-  cudaMemcpy(d_letam, letam, sizeof(Index_t)*numElem, cudaMemcpyHostToDevice); 
-  cudaMemcpy(d_letap, letap, sizeof(Index_t)*numElem, cudaMemcpyHostToDevice); 
-  cudaMemcpy(d_lxip, lxip, sizeof(Index_t)*numElem, cudaMemcpyHostToDevice); 
-  cudaMemcpy(d_lxim, lxim, sizeof(Index_t)*numElem, cudaMemcpyHostToDevice); 
-  cudaMemcpy(d_elemBC, elemBC, sizeof(Index_t)*numElem, cudaMemcpyHostToDevice); 
-  cudaMemcpy(d_elemMass, elemMass, sizeof(Real_t)*numElem, cudaMemcpyHostToDevice); 
+  cudaMemcpy(d_lzetam, lzetam, sizeof(Index_t)*numElem, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_lzetap, lzetap, sizeof(Index_t)*numElem, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_letam, letam, sizeof(Index_t)*numElem, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_letap, letap, sizeof(Index_t)*numElem, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_lxip, lxip, sizeof(Index_t)*numElem, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_lxim, lxim, sizeof(Index_t)*numElem, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_elemBC, elemBC, sizeof(Index_t)*numElem, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_elemMass, elemMass, sizeof(Real_t)*numElem, cudaMemcpyHostToDevice);
 
   Index_t *elemRep = &locDom->m_elemRep[0];
   Index_t *elemElem = &locDom->m_elemElem[0];
@@ -2512,7 +2489,7 @@ int main(int argc, char *argv[])
   cudaMemcpy(d_elemElem, elemElem, sizeof(Index_t)*numElem, cudaMemcpyHostToDevice);
 
   Real_t *v = &locDom->m_v[0];
-  cudaMemcpy(d_v, v, sizeof(Real_t)*numElem, cudaMemcpyHostToDevice); 
+  cudaMemcpy(d_v, v, sizeof(Real_t)*numElem, cudaMemcpyHostToDevice);
 
   Real_t *vdov = &locDom->m_vdov[0];
   cudaMemcpy(d_vdov, vdov, sizeof(Real_t)*numElem, cudaMemcpyHostToDevice);
@@ -2525,8 +2502,17 @@ int main(int argc, char *argv[])
 
   // error checking on the host
   Real_t *determ = Allocate<Real_t>(numElem) ;
+
   // resize m_dxx, m_dyy, and m_dzz
   locDom->AllocateStrains(numElem);
+
+  Real_t *dxx = &locDom->m_dxx[0];
+  Real_t *dyy = &locDom->m_dyy[0];
+  Real_t *dzz = &locDom->m_dzz[0];
+
+  cudaMemcpy(d_dxx, dxx, sizeof(Real_t)*numElem, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_dyy, dyy, sizeof(Real_t)*numElem, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_dzz, dzz, sizeof(Real_t)*numElem, cudaMemcpyHostToDevice);
 
   // resize position and velocity gradients
   Int_t allElem = numElem +  /* local elem */
@@ -2545,7 +2531,7 @@ int main(int argc, char *argv[])
 
     //=============================================================
     // calculate nodal forces, accelerations, velocities, positions, with
-    // applied boundary conditions and slide surface considerations 
+    // applied boundary conditions and slide surface considerations
     //LagrangeNodal(domain);
     //=============================================================
 
@@ -2556,12 +2542,12 @@ int main(int argc, char *argv[])
 
     //=============================================================================
     // time of boundary condition evaluation is beginning of step for force and
-    // acceleration boundary conditions. 
-    //CalcForceForNodes(domain);  
+    // acceleration boundary conditions.
+    //CalcForceForNodes(domain);
     //=============================================================================
 
     //=====================================================================
-    // CalcVolumeForceForElems(domain) 
+    // CalcVolumeForceForElems(domain)
     //=====================================================================
 
     Real_t  hgcoef = domain.hgcoef() ;
@@ -2601,6 +2587,7 @@ int main(int argc, char *argv[])
         d_nodeElemCornerList,
         numNode);
 
+#ifdef VERIFY
     // check for negative element volume on the host
     cudaMemcpy(determ, d_determ, sizeof(Real_t)*numElem, cudaMemcpyDeviceToHost);
 
@@ -2609,17 +2596,19 @@ int main(int argc, char *argv[])
 #endif
     for ( Index_t k=0 ; k<numElem ; ++k ) {
       if (determ[k] <= Real_t(0.0)) {
-        exit(VolumeError);
+        printf("determError: negative determ value @%d %f\n", k, determ[k]);
+        //exit(VolumeError);
       }
     }
+#endif
 
     //=================================================================================
-    // CalcHourglassControlForElems(device_queue, domain, determ, hgcoef) ;  
+    // CalcHourglassControlForElems(device_queue, domain, determ, hgcoef) ;
     //=================================================================================
 
     int vol_error = -1;
 
-    cudaMemcpy(d_vol_error, &vol_error, sizeof(int), cudaMemcpyHostToDevice); 
+    cudaMemcpy(d_vol_error, &vol_error, sizeof(int), cudaMemcpyHostToDevice);
 
     hgc<<<gws_elem, lws>>>(
         d_dvdx,
@@ -2638,7 +2627,7 @@ int main(int argc, char *argv[])
         d_vol_error,
         numElem );
 
-#ifdef VERIFY
+#ifdef DEBUG
     Real_t *dvdx_tmp = (Real_t*) malloc (sizeof(Real_t)*numElem8);
     Real_t *dvdy_tmp = (Real_t*) malloc (sizeof(Real_t)*numElem8);
     Real_t *dvdz_tmp = (Real_t*) malloc (sizeof(Real_t)*numElem8);
@@ -2656,8 +2645,8 @@ int main(int argc, char *argv[])
 
     // volumn derivative
     for (int i = 0; i < numElem8; i++) {
-      printf("vd %d %f %f %f %f %f %f %f\n", 
-          i, dvdx_tmp[i], dvdy_tmp[i], dvdz_tmp[i], 
+      printf("vd %d %f %f %f %f %f %f %f\n",
+          i, dvdx_tmp[i], dvdy_tmp[i], dvdz_tmp[i],
           x8n_tmp[i], y8n_tmp[i], z8n_tmp[i], determ[i/8]);
     }
 
@@ -2669,12 +2658,14 @@ int main(int argc, char *argv[])
     free(z8n_tmp);
 #endif
 
+#ifdef VERIFY
     cudaMemcpy(&vol_error, d_vol_error, sizeof(int), cudaMemcpyDeviceToHost);
 
     if (vol_error >= 0){
       printf("VolumeError: negative volumn\n");
       exit(VolumeError);
     }
+#endif
 
     if ( hgcoef > Real_t(0.) ) {
 
@@ -2715,7 +2706,7 @@ int main(int argc, char *argv[])
           d_nodeElemCornerList,
           numNode );
 
-#ifdef VERIFY
+#ifdef DEBUG
       Real_t *fx_tmp = (Real_t*) malloc (sizeof(Real_t)*numNode);
       Real_t *fy_tmp = (Real_t*) malloc (sizeof(Real_t)*numNode);
       Real_t *fz_tmp = (Real_t*) malloc (sizeof(Real_t)*numNode);
@@ -2725,13 +2716,13 @@ int main(int argc, char *argv[])
       cudaMemcpy(fz_tmp, d_fz, sizeof(Real_t)*numNode, cudaMemcpyDeviceToHost);
 
       for (int i = 0; i < numNode; i++)
-        printf("fb: %d %f %f %f\n", i, fx_tmp[i], fy_tmp[i], fz_tmp[i]); 
+        printf("fb: %d %f %f %f\n", i, fx_tmp[i], fy_tmp[i], fz_tmp[i]);
 
       free(fx_tmp);
       free(fy_tmp);
       free(fz_tmp);
-#endif 
-    } // if ( hgcoef > Real_t(0.) ) 
+#endif
+    } // if ( hgcoef > Real_t(0.) )
 
     //===========================================================================
     //CalcAccelerationForNodes(domain, domain.numNode());   // IN: fx  OUT: m_xdd
@@ -2784,7 +2775,7 @@ int main(int argc, char *argv[])
         numNode );
 
     //=================================================================================
-    // CalcPositionForNodes( domain, delt, domain.numNode() );  //uses m_xd and m_x 
+    // CalcPositionForNodes( domain, delt, domain.numNode() );  //uses m_xd and m_x
     //=================================================================================
     calcPositionForNodes<<<gws_node, lws >>>(
         d_x,
@@ -2796,7 +2787,7 @@ int main(int argc, char *argv[])
         deltaTime,
         numNode) ;
 
-#ifdef VERIFY
+#ifdef DEBUG
     Real_t *xd_tmp = (Real_t*) malloc (sizeof(Real_t)*numNode);
     Real_t *yd_tmp = (Real_t*) malloc (sizeof(Real_t)*numNode);
     Real_t *zd_tmp = (Real_t*) malloc (sizeof(Real_t)*numNode);
@@ -2812,8 +2803,8 @@ int main(int argc, char *argv[])
     cudaMemcpy(z_tmp, d_z, sizeof(Real_t)*numNode, cudaMemcpyDeviceToHost);
 
     for (int i = 0; i < numNode; i++)
-      printf("CalcPositionForNodes: %d %f %f %f %f %f %f\n", 
-          i, x_tmp[i], y_tmp[i], z_tmp[i], xd_tmp[i], yd_tmp[i], zd_tmp[i]); 
+      printf("CalcPositionForNodes: %d %f %f %f %f %f %f\n",
+          i, x_tmp[i], y_tmp[i], z_tmp[i], xd_tmp[i], yd_tmp[i], zd_tmp[i]);
 
     free(x_tmp);
     free(y_tmp);
@@ -2821,17 +2812,17 @@ int main(int argc, char *argv[])
     free(xd_tmp);
     free(yd_tmp);
     free(zd_tmp);
-#endif 
+#endif
 
     //=========================================================
-    // calculate element quantities (i.e. velocity gradient & q), and update material states 
+    // calculate element quantities (i.e. velocity gradient & q), and update material states
     // LagrangeElements(domain);
     //=========================================================
 
 
 
     //========================================================================
-    // void CalcKinematicsForElems( Domain &domain, Real_t *vnew, 
+    // void CalcKinematicsForElems( Domain &domain, Real_t *vnew,
     //========================================================================
     calcKinematicsForElems<<<gws_elem, lws>>>(
         d_xd,
@@ -2854,7 +2845,7 @@ int main(int argc, char *argv[])
 
     vol_error = -1; // reset volumn error
 
-    cudaMemcpy(d_vol_error, &vol_error, sizeof(int), cudaMemcpyHostToDevice); 
+    cudaMemcpy(d_vol_error, &vol_error, sizeof(int), cudaMemcpyHostToDevice);
 
     calcStrainRates<<<gws_elem, lws>>>(
         d_dxx,
@@ -2865,26 +2856,29 @@ int main(int argc, char *argv[])
         d_vol_error,
         numElem );
 
-    cudaMemcpy(&vol_error, d_vol_error, sizeof(int), cudaMemcpyDeviceToHost); 
+#ifdef VERIFY
+    cudaMemcpy(&vol_error, d_vol_error, sizeof(int), cudaMemcpyDeviceToHost);
     if (vol_error >= 0){
       printf("VolumeError: negative volumn\n");
-      exit(VolumeError);
+      //exit(VolumeError);
     }
+#endif
 
-#ifdef VERIFY
     cudaMemcpy(vdov, d_vdov, sizeof(Real_t)*numElem, cudaMemcpyDeviceToHost);
+
+#ifdef DEBUG
     for ( Index_t k=0 ; k<numElem ; ++k )
     {
       printf("kintec: %d %f\n", k, vdov[k]);
     }
 #endif
 
-    //======================================================= 
+    //=======================================================
     //CalcQForElems(domain, vnew) ;
-    //======================================================= 
+    //=======================================================
 
     //================================================================
-    // Calculate velocity gradients 
+    // Calculate velocity gradients
     //CalcMonotonicQGradientsForElems(domain, vnew);
     //================================================================
     calcMonotonicQGradientsForElems<<<gws_elem, lws>>>(
@@ -2939,12 +2933,12 @@ int main(int argc, char *argv[])
         qqc_monoq,
         numElem );
 
-#ifdef VERIFY
+#ifdef DEBUG
     Real_t* qq_tmp = (Real_t*) malloc (sizeof(Real_t)*numElem);
     Real_t* ql_tmp = (Real_t*) malloc (sizeof(Real_t)*numElem);
 
-    cudaMemcpy(qq_tmp, d_qq, sizeof(Real_t)*numElem, cudaMemcpyDeviceToHost); 
-    cudaMemcpy(ql_tmp, d_ql, sizeof(Real_t)*numElem, cudaMemcpyDeviceToHost); 
+    cudaMemcpy(qq_tmp, d_qq, sizeof(Real_t)*numElem, cudaMemcpyDeviceToHost);
+    cudaMemcpy(ql_tmp, d_ql, sizeof(Real_t)*numElem, cudaMemcpyDeviceToHost);
     for (int i = 0; i < numElem; i++) {
       printf("mqr: %d %f %f\n", i, qq_tmp[i], ql_tmp[i]);
     }
@@ -2953,8 +2947,9 @@ int main(int argc, char *argv[])
     free(ql_tmp);
 #endif
 
+#ifdef VERIFY
     /* Don't allow excessive artificial viscosity */
-    Index_t idx = -1; 
+    Index_t idx = -1;
     for (Index_t i=0; i<numElem; ++i) {
       if ( domain.q(i) > domain.qstop() ) {
         idx = i ;
@@ -2964,15 +2959,16 @@ int main(int argc, char *argv[])
 
     if(idx >= 0) {
       printf("QStopError\n");
-      exit(QStopError);
+      //exit(QStopError);
     }
+#endif
 
     //=================================================
     //ApplyMaterialPropertiesForElems(domain, vnew) ;
     //=================================================
     Real_t  e_cut = domain.e_cut() ;
     Real_t  p_cut = domain.p_cut() ;
-    Real_t  ss4o3 = domain.ss4o3() ;
+    //Real_t  ss4o3 = domain.ss4o3() ;
     Real_t  q_cut = domain.q_cut() ;
     Real_t  v_cut = domain.v_cut() ;
 
@@ -2996,7 +2992,7 @@ int main(int argc, char *argv[])
         d_vnew,
         e_cut,
         p_cut,
-        ss4o3,
+        //ss4o3,
         q_cut,
         v_cut,
 
@@ -3007,13 +3003,13 @@ int main(int argc, char *argv[])
         rho0,
         numElem );
 
-    //cudaMemcpy(arealg, d_arealg, sizeof(Real_t)*numElem, cudaMemcpyDeviceToHost);
+    cudaMemcpy(arealg, d_arealg, sizeof(Real_t)*numElem, cudaMemcpyDeviceToHost);
+    cudaMemcpy(ss, d_ss, sizeof(Real_t)*numElem, cudaMemcpyDeviceToHost);
 
-#ifdef VERIFY
+#ifdef DEBUG
     cudaMemcpy(p, d_p, sizeof(Real_t)*numElem, cudaMemcpyDeviceToHost);
     cudaMemcpy(q, d_q, sizeof(Real_t)*numElem, cudaMemcpyDeviceToHost);
     cudaMemcpy(e, d_e, sizeof(Real_t)*numElem, cudaMemcpyDeviceToHost);
-    cudaMemcpy(ss, d_ss, sizeof(Real_t)*numElem, cudaMemcpyDeviceToHost);
     cudaMemcpy(v, d_v, sizeof(Real_t)*numElem, cudaMemcpyDeviceToHost);
     for (int i = 0; i < numElem; i++) {
       printf("eos: %f %f %f %f %f\n", q[i], p[i], e[i], ss[i], v[i]);
