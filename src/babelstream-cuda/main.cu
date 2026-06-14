@@ -240,7 +240,6 @@ T dot(const T * da, const T * db, T * dsum, T *sums)
   return sum;
 }
 
-
 // Runs the kernel(s) and prints output.
 template <typename T>
 void run()
@@ -292,11 +291,51 @@ void run()
   // Initialize device arrays
   init_arrays(da, db, dc, (T)0.1, (T)0.2, T(0.0));
 
+  // simulation-based validation
+  std::vector<T> ha (ARRAY_SIZE, (T)0.1);
+  std::vector<T> hb (ARRAY_SIZE, (T)0.2);
+  std::vector<T> hc (ARRAY_SIZE);
+  std::vector<T> hd (ARRAY_SIZE); // nstream result
+
+  copy(da, dc); // c = a
+  mul(db, dc);  // b = c * scalar
+  add(da, db, dc); // c = a + b
+  triad(da, db, dc); // a = b + scalar * c
+  T sum_d = dot(da, db, dsum, sums); // s = dot(a * b)
+  nstream(da, db, dc); //  a += b + scalar * c
+
+  for (int i = 0; i < ARRAY_SIZE; i++) {
+    hc[i] = ha[i];
+    hb[i] = hc[i] * SCALAR;
+    hc[i] = ha[i] + hb[i];
+    ha[i] = hb[i] + SCALAR * hc[i];
+  }
+  double sum_r = 0;
+  for (int i = 0; i < ARRAY_SIZE; i++) sum_r += ha[i] * hb[i]; 
+  for (int i = 0; i < ARRAY_SIZE; i++) ha[i] += hb[i] + SCALAR * hc[i];
+  cudaMemcpy(hd.data(), da, sizeof(T) * ARRAY_SIZE, cudaMemcpyDeviceToHost);
+  bool ok = true;
+  if (std::fabs(sum_r - sum_d) >= 1) {
+    std::cout << "dot: " << sum_r << " " << sum_d << std::endl;
+    ok = false;
+  }
+  for (int i = 0; i < ARRAY_SIZE; i++) {
+    if (std::fabs(hd[i] - ha[i]) > 1e-3) {
+      std::cout << "a: " << hd[i] << " " << ha[i] << std::endl;
+      ok = false;
+      break;
+    }
+  }
+  printf("%s\n", ok ? "PASS": "FAIL");
+
   // List of times
   std::vector<std::vector<double>> timings(6);
 
   // Declare timers
   std::chrono::high_resolution_clock::time_point t1, t2;
+
+  // Last computed dot product, used for validation
+  T sum = 0.0;
 
   // Main loop
   for (unsigned int k = 0; k < num_times; k++)

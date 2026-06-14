@@ -184,6 +184,44 @@ void run()
     // Initialize device arrays
     init_arrays(a, b, c, (T)0.1, (T)0.2, T(0.0));
 
+    // simulation-based validation
+    std::vector<T> ha (ARRAY_SIZE, (T)0.1);
+    std::vector<T> hb (ARRAY_SIZE, (T)0.2);
+    std::vector<T> hc (ARRAY_SIZE);
+    std::vector<T> hd (ARRAY_SIZE); // nstream result
+
+    copy(a, c); // c = a
+    mul(b, c);  // b = c * scalar
+    add(a, b, c); // c = a + b
+    triad(a, b, c); // a = b + scalar * c
+    T sum_d = dot(a, b);
+    nstream(a, b, c); //  a += b + scalar * c
+
+    double sum_r = 0;
+    for (int i = 0; i < ARRAY_SIZE; i++) {
+      hc[i] = ha[i];
+      hb[i] = hc[i] * SCALAR;
+      hc[i] = ha[i] + hb[i];
+      ha[i] = hb[i] + SCALAR * hc[i];
+    }
+    for (int i = 0; i < ARRAY_SIZE; i++) sum_r += ha[i] * hb[i]; 
+    for (int i = 0; i < ARRAY_SIZE; i++) ha[i] += hb[i] + SCALAR * hc[i];
+
+    #pragma omp target update from (a[0:ARRAY_SIZE])
+    bool ok = true;
+    if (std::fabs(sum_r - sum_d) >= 1) {
+      std::cout << "dot: " << sum_r << " " << sum_d << std::endl;
+      ok = false;
+    }
+    for (int i = 0; i < ARRAY_SIZE; i++) {
+      if (std::fabs(a[i] - ha[i]) > 1e-3) {
+        std::cout << "a: " << a[i] << " " << ha[i] << std::endl;
+        ok = false;
+        break;
+      }
+    }
+    printf("%s\n", ok ? "PASS": "FAIL");
+
     // List of times
     std::vector<std::vector<double>> timings(6);
 

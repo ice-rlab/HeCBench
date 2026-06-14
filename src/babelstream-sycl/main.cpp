@@ -193,7 +193,7 @@ void nstream(sycl::queue &q, T *da, const T *db, const T *dc)
 
 // sum += da[i] * db[i] for each i
 template <typename T>
-void dot(sycl::queue &q, const T *da, const T *db, T *dsum)
+T dot(sycl::queue &q, const T *da, const T *db, T *dsum)
 {
   // https://github.com/UoB-HPC/BabelStream/blob/main/src/sycl2020/SYCLStream2020.cpp
   q.submit([&] (sycl::handler &cgh) {
@@ -208,7 +208,10 @@ void dot(sycl::queue &q, const T *da, const T *db, T *dsum)
     [a=da,b=db](sycl::id<1> idx, auto& sum) {
       sum += a[idx] * b[idx];
     });
-  }).wait();
+  });
+  T sum;
+  q.memcpy(&sum, dsum, sizeof(T)).wait();
+  return sum;
 }
 
 
@@ -254,6 +257,43 @@ void run()
 
   // Initialize device arrays
   init_arrays(q, da, db, dc, (T)0.1, (T)0.2, T(0.0));
+
+  // simulation-based validation
+  std::vector<T> ha (ARRAY_SIZE, (T)0.1);
+  std::vector<T> hb (ARRAY_SIZE, (T)0.2);
+  std::vector<T> hc (ARRAY_SIZE);
+  std::vector<T> hd (ARRAY_SIZE); // nstream result
+
+  copy(q, da, dc); // c = a
+  mul(q, db, dc);  // b = c * scalar
+  add(q, da, db, dc); // c = a + b
+  triad(q, da, db, dc); // a = b + scalar * c
+  T sum_d = dot(q, da, db, dsum); // s = dot(a * b)
+  nstream(q, da, db, dc); //  a += b + scalar * c
+
+  for (int i = 0; i < ARRAY_SIZE; i++) {
+    hc[i] = ha[i];
+    hb[i] = hc[i] * SCALAR;
+    hc[i] = ha[i] + hb[i];
+    ha[i] = hb[i] + SCALAR * hc[i];
+  }
+  double sum_r = 0;
+  for (int i = 0; i < ARRAY_SIZE; i++) sum_r += ha[i] * hb[i]; 
+  for (int i = 0; i < ARRAY_SIZE; i++) ha[i] += hb[i] + SCALAR * hc[i];
+  q.memcpy(hd.data(), da, sizeof(T) * ARRAY_SIZE).wait();
+  bool ok = true;
+  if (std::fabs(sum_r - sum_d) >= 1) {
+    std::cout << "dot: " << sum_r << " " << sum_d << std::endl;
+    ok = false;
+  }
+  for (int i = 0; i < ARRAY_SIZE; i++) {
+    if (std::fabs(hd[i] - ha[i]) > 1e-3) {
+      std::cout << "a: " << hd[i] << " " << ha[i] << std::endl;
+      ok = false;
+      break;
+    }
+  }
+  printf("%s\n", ok ? "PASS": "FAIL");
 
   // List of times
   std::vector<std::vector<double>> timings(6);

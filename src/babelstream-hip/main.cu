@@ -55,6 +55,7 @@
 #define SCALAR (0.4)
 
 int ARRAY_SIZE = 33554432; // Default size of 2^25
+
 unsigned int num_times = 100;
 
 void check_error(void)
@@ -223,17 +224,18 @@ __global__ void dot_kernel(
     sum[blockIdx.x] = tb_sum[local_i];
 }
 
+
 template <class T>
-T dot(const T * da, const T * db, T * dsum, T *sums)
+T dot(const T * da, const T * db, T *dsum, T *sums)
 {
   const int array_size = ARRAY_SIZE;
   hipLaunchKernelGGL(dot_kernel, dim3(DOT_NUM_BLOCKS), dim3(TBSIZE), 0, 0, da, db, dsum, array_size);
   check_error();
 
-  // sum up partial sums on a host
   hipMemcpy(sums, dsum, DOT_NUM_BLOCKS*sizeof(T), hipMemcpyDeviceToHost);
   check_error();
 
+  // sum up partial sums on a host
   T sum = 0.0;
   for (int i = 0; i < DOT_NUM_BLOCKS; i++)
     sum += sums[i];
@@ -291,6 +293,43 @@ void run()
 
   // Initialize device arrays
   init_arrays(da, db, dc, (T)0.1, (T)0.2, T(0.0));
+
+  // simulation-based validation
+  std::vector<T> ha (ARRAY_SIZE, (T)0.1);
+  std::vector<T> hb (ARRAY_SIZE, (T)0.2);
+  std::vector<T> hc (ARRAY_SIZE);
+  std::vector<T> hd (ARRAY_SIZE); // nstream result
+
+  copy(da, dc); // c = a
+  mul(db, dc);  // b = c * scalar
+  add(da, db, dc); // c = a + b
+  triad(da, db, dc); // a = b + scalar * c
+  T sum_d = dot(da, db, dsum, sums); // s = dot(a * b)
+  nstream(da, db, dc); //  a += b + scalar * c
+
+  for (int i = 0; i < ARRAY_SIZE; i++) {
+    hc[i] = ha[i];
+    hb[i] = hc[i] * SCALAR;
+    hc[i] = ha[i] + hb[i];
+    ha[i] = hb[i] + SCALAR * hc[i];
+  }
+  double sum_r = 0;
+  for (int i = 0; i < ARRAY_SIZE; i++) sum_r += ha[i] * hb[i]; 
+  for (int i = 0; i < ARRAY_SIZE; i++) ha[i] += hb[i] + SCALAR * hc[i];
+  hipMemcpy(hd.data(), da, sizeof(T) * ARRAY_SIZE, hipMemcpyDeviceToHost);
+  bool ok = true;
+  if (std::fabs(sum_r - sum_d) >= 1) {
+    std::cout << "dot: " << sum_r << " " << sum_d << std::endl;
+    ok = false;
+  }
+  for (int i = 0; i < ARRAY_SIZE; i++) {
+    if (std::fabs(hd[i] - ha[i]) > 1e-3) {
+      std::cout << "a: " << hd[i] << " " << ha[i] << std::endl;
+      ok = false;
+      break;
+    }
+  }
+  printf("%s\n", ok ? "PASS": "FAIL");
 
   // List of times
   std::vector<std::vector<double>> timings(6);
@@ -391,6 +430,7 @@ void run()
   hipFree(dsum);
   check_error();
   free(sums);
+  check_error();
 }
 
 
