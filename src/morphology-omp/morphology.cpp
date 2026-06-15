@@ -50,17 +50,25 @@ void twoWayScan(unsigned char* __restrict buffer,
 {
   opArray[tid] = buffer[tid];
   opArray[tid + selSize] = buffer[tid + selSize];
-  #pragma omp barrier
+
+  unsigned char fwd_val, rev_val;
+  const int ub = selSize - 1;
 
   for (int offset = 1; offset < selSize; offset *= 2) {
-    if (tid >= offset) {
-      opArray[tid + selSize - 1] = 
-        elementOp<opType>(opArray[tid + selSize - 1], opArray[tid + selSize - 1 - offset]);
-    }
-    if (tid <= selSize - 1 - offset) {
-      opArray[tid] = elementOp<opType>(opArray[tid], opArray[tid + offset]);
-    }
+    const int lb = ub - offset; 
+    // forward and reverse scan
+    bool isFwd = tid >= offset; 
+    bool isRev = tid <= lb;
+
     #pragma omp barrier
+
+    if (isFwd) fwd_val = elementOp<opType>(opArray[tid + ub], opArray[tid + lb]);
+    if (isRev) rev_val = elementOp<opType>(opArray[tid], opArray[tid + offset]);
+
+    #pragma omp barrier
+
+    if (isFwd) opArray[tid + ub] = fwd_val;
+    if (isRev) opArray[tid] = rev_val;
   }
 }
 #pragma omp end declare target
@@ -94,7 +102,7 @@ double morphology(unsigned char* img_d,
   #pragma omp target teams num_teams(gridSize_x_h*gridSize_y_h) thread_limit(blockSize_x_h*blockSize_y_h)
   {
     //size_t sMemSize = 4 * hsize * sizeof(unsigned char);
-    unsigned char sMem[128];
+    unsigned char sMem[256];
     #pragma omp parallel 
     {
       unsigned char* buffer = sMem;
@@ -127,7 +135,7 @@ double morphology(unsigned char* img_d,
   #pragma omp target teams num_teams(gridSize_x_v*gridSize_y_v) thread_limit(blockSize_x_v*blockSize_y_v)
   {
     //size_t sMemSize = 4 * hsize * sizeof(unsigned char);
-    unsigned char sMem[128];
+    unsigned char sMem[256];
     #pragma omp parallel 
     {
       unsigned char* buffer = sMem;

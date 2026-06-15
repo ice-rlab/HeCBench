@@ -55,17 +55,25 @@ void twoWayScan(unsigned char* __restrict sMem,
 {
   opArray[tid] = sMem[tid];
   opArray[tid + selSize] = sMem[tid + selSize];
-  item.barrier(sycl::access::fence_space::local_space);
+
+  unsigned char fwd_val, rev_val;
+  const int ub = selSize - 1;
 
   for (int offset = 1; offset < selSize; offset *= 2) {
-    if (tid >= offset) {
-        opArray[tid + selSize - 1] = 
-            elementOp<opType>(opArray[tid + selSize - 1], opArray[tid + selSize - 1 - offset]);
-    }
-    if (tid <= selSize - 1 - offset) {
-        opArray[tid] = elementOp<opType>(opArray[tid], opArray[tid + offset]);
-    }
+    const int lb = ub - offset; 
+    // forward and reverse scan
+    bool isFwd = tid >= offset; 
+    bool isRev = tid <= lb;
+
     item.barrier(sycl::access::fence_space::local_space);
+
+    if (isFwd) fwd_val = elementOp<opType>(opArray[tid + ub], opArray[tid + lb]);
+    if (isRev) rev_val = elementOp<opType>(opArray[tid], opArray[tid + offset]);
+
+    item.barrier(sycl::access::fence_space::local_space);
+
+    if (isFwd) opArray[tid + ub] = fwd_val;
+    if (isRev) opArray[tid] = rev_val;
   }
 }
 
