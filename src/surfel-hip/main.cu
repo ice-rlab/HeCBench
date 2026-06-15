@@ -118,6 +118,7 @@ __global__ void surfel_render_tile(
                 dMin = t;
             }
         }
+        __syncthreads();
     }
 
     d[y * w + x] = (dMin > T(100)) ? T(0) : dMin;

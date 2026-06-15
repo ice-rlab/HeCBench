@@ -121,6 +121,7 @@ void surfel_render_tile(
                 dMin = t;
             }
         }
+        item.barrier(sycl::access::fence_space::local_space);
     }
 
     d[y * w + x] = (dMin > T(100)) ? T(0) : dMin;
