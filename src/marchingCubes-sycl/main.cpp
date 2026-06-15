@@ -534,6 +534,7 @@ int main(int argc, char* argv[])
           sumsVertices[31] = atomicAdd(countedVerticesNumDevice, sumVertices);
           sumsTriangles[31] = atomicAdd(countedTrianglesNumDevice, sumTriangles);
         }
+        item.barrier(sycl::access::fence_space::local_space);
 
         unsigned int interOffsetVertices(sumVertices - numVertices);
         sumVertices = interOffsetVertices + sumsVertices[31];//exclusive offset

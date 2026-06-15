@@ -385,6 +385,7 @@ __global__ void generatingTriangles(
     sumsVertices[31] = atomicAdd(countedVerticesNum, sumVertices);
     sumsTriangles[31] = atomicAdd(countedTrianglesNum, sumTriangles);
   }
+  __syncthreads();
 
   unsigned int interOffsetVertices(sumVertices - numVertices);
   sumVertices = interOffsetVertices + sumsVertices[31];//exclusive offset
