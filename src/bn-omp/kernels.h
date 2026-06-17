@@ -89,7 +89,6 @@ void genScoreKernel(const int sizepernode,
       }
     }
   }
-  #pragma omp target update from (D_localscore[0:NODE_N * sizepernode])
 }
 
 void computeKernel(const int taskperthr,
@@ -123,7 +122,7 @@ void computeKernel(const int taskperthr,
 
       for(i=0;i<taskperthr&&((id*taskperthr+i)<total);i++){
 
-        D_findComb(parent,id*taskperthr+i,posN);
+        D_findComb(parent,id*taskperthr+i,posN-1);
 
         for(parN=0;parN<4;parN++){
           if(parent[parN]<0) break;
