@@ -6,41 +6,10 @@
 #include <sycl/sycl.hpp>
 #include "kernels.h"
 
-const int HIGHEST = 3;
-const int ITER = 100;
-const int WORKLOAD = 1;
-int sizepernode;
+#include "reference.h"
 
-// global var
-float preScore = -99999999999.f;
-float score = 0.0;
-float maxScore[HIGHEST] = {-999999999.f};
-bool orders[NODE_N][NODE_N];
-bool preOrders[NODE_N][NODE_N];
-bool preGraph[NODE_N][NODE_N];
-bool bestGraph[HIGHEST][NODE_N][NODE_N];
-bool graph[NODE_N][NODE_N];
-float *localscore, *scores;
-float *LG;
-int *parents;
-
-void initial();  // initial orders and data
-int genOrders(); // swap
-int ConCore();   // discard new order or not
-// get every possible set of parents for a node
-void incr(int *bit, int n);  // binary code increases 1 each time
-void incrS(int *bit, int n); // STATE_N code increases 1 each time
-// get every possible combination of state for a parent set
-bool getState( int parN, int *state, int time); 
-float logGamma(int N); // log and gamma
 float findBestGraph(sycl::queue &q, float* D_localscore, int* D_resP,
                     float* D_Score, bool *D_parent);
-void genScore();
-void sortGraph();
-void swap(int a, int b);
-void Pre_logGamma();
-int findindex(int *arr, int size);
-int C(int n, int a);
 
 int main(int argc, char** argv) {
 
@@ -95,12 +64,11 @@ int main(int argc, char** argv) {
 
   const int sizePerNode = sizepernode;  // global variable not allowed by lambda
 
-  q.memset(D_localscore, 0, NODE_N * sizepernode * sizeof(float));
-
   q.wait();
   auto start = std::chrono::steady_clock::now();
 
   for (i = 0; i < repeat; i++) {
+    q.memset(D_localscore, 0, NODE_N * sizepernode * sizeof(float));
     q.submit([&] (sycl::handler &cgh) {
       cgh.parallel_for<class genScore>(sycl::nd_range<1>(gws, lws), [=] (sycl::nd_item<1> item) {
         genScoreKernel(sizePerNode, D_localscore, D_data, D_LG, item);
@@ -115,88 +83,106 @@ int main(int argc, char** argv) {
 
   q.memcpy(localscore, D_localscore, NODE_N * sizepernode * sizeof(float)).wait();
 
-  long findBestGraph_time = 0;
-  i = 0;
-  while (i != ITER) {
-
-    i++;
-    score = 0;
-
-    for (a = 0; a < NODE_N; a++) {
-      for (j = 0; j < NODE_N; j++) {
-        orders[a][j] = preOrders[a][j];
-      }
+  genScore_ref(sizepernode, localscore_ref, data, LG);
+  bool ok = true;
+  for (int i = 0; i < NODE_N * sizepernode; i++) {
+    if (fabsf(localscore[i] - localscore_ref[i]) > 1e-3f) {
+      ok = false;
+      break;
     }
+  }
+  printf("Check genScoreKernel results: %s\n", ok ? "PASS" : "FAIL");
 
-    tmp = rand() % 6;
-    for (j = 0; j < tmp; j++)
-      genOrders();
+  if (ok) {
+    long findBestGraph_time = 0;
+    i = 0;
+    while (i != ITER) {
 
-    start = std::chrono::steady_clock::now();
+      i++;
+      score = 0;
 
-    score = findBestGraph(q, D_localscore, D_resP, D_Score, D_parent);
-
-    end = std::chrono::steady_clock::now();
-    findBestGraph_time += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-
-    ConCore();
-
-    // store the top HIGHEST highest orders
-    if (c < HIGHEST) {
-      tmp = 1;
-      for (j = 0; j < c; j++) {
-        if (maxScore[j] == preScore) {
-          tmp = 0;
+      for (a = 0; a < NODE_N; a++) {
+        for (j = 0; j < NODE_N; j++) {
+          orders[a][j] = preOrders[a][j];
         }
       }
-      if (tmp != 0) {
-        maxScore[c] = preScore;
-        for (a = 0; a < NODE_N; a++) {
-          for (b = 0; b < NODE_N; b++) {
-            bestGraph[c][a][b] = preGraph[a][b];
+
+      tmp = rand() % 6;
+      for (j = 0; j < tmp; j++)
+        genOrders();
+
+      start = std::chrono::steady_clock::now();
+
+      score = findBestGraph(q, D_localscore, D_resP, D_Score, D_parent);
+
+      end = std::chrono::steady_clock::now();
+      findBestGraph_time += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+
+      score_ref = findBestGraph_ref(localscore);
+      if (fabsf(score - score_ref) > 1e-3f) {
+        ok = false;
+        printf("Check scores error: %f != %f (reference)\n", score, score_ref);
+        break;
+      }
+
+      ConCore();
+
+      // store the top HIGHEST highest orders
+      if (c < HIGHEST) {
+        tmp = 1;
+        for (j = 0; j < c; j++) {
+          if (maxScore[j] == preScore) {
+            tmp = 0;
           }
         }
+        if (tmp != 0) {
+          maxScore[c] = preScore;
+          for (a = 0; a < NODE_N; a++) {
+            for (b = 0; b < NODE_N; b++) {
+              bestGraph[c][a][b] = preGraph[a][b];
+            }
+          }
+          c++;
+        }
+
+      } else if (c == HIGHEST) {
+        sortGraph();
         c++;
-      }
+      } else {
 
-    } else if (c == HIGHEST) {
-      sortGraph();
-      c++;
-    } else {
-
-      tmp = 1;
-      for (j = 0; j < HIGHEST; j++) {
-        if (maxScore[j] == preScore) {
-          tmp = 0;
-          break;
-        }
-      }
-      if (tmp != 0 && preScore > maxScore[HIGHEST - 1]) {
-        maxScore[HIGHEST - 1] = preScore;
-        for (a = 0; a < NODE_N; a++) {
-          for (b = 0; b < NODE_N; b++) {
-            bestGraph[HIGHEST - 1][a][b] = preGraph[a][b];
+        tmp = 1;
+        for (j = 0; j < HIGHEST; j++) {
+          if (maxScore[j] == preScore) {
+            tmp = 0;
+            break;
           }
         }
-        b = HIGHEST - 1;
-        for (a = HIGHEST - 2; a >= 0; a--) {
-          if (maxScore[b] > maxScore[a]) {
-            swap(a, b);
-            tmpd = maxScore[a];
-            maxScore[a] = maxScore[b];
-            maxScore[b] = tmpd;
-            b = a;
+        if (tmp != 0 && preScore > maxScore[HIGHEST - 1]) {
+          maxScore[HIGHEST - 1] = preScore;
+          for (a = 0; a < NODE_N; a++) {
+            for (b = 0; b < NODE_N; b++) {
+              bestGraph[HIGHEST - 1][a][b] = preGraph[a][b];
+            }
+          }
+          b = HIGHEST - 1;
+          for (a = HIGHEST - 2; a >= 0; a--) {
+            if (maxScore[b] > maxScore[a]) {
+              swap(a, b);
+              tmpd = maxScore[a];
+              maxScore[a] = maxScore[b];
+              maxScore[b] = tmpd;
+              b = a;
+            }
           }
         }
       }
-    }
+    } // endwhile
 
-  } // endwhile
-
-  printf("Find best graph time %lf (s)\n", findBestGraph_time * 1e-9);
-
+    printf("Find best graph time %lf (s)\n", findBestGraph_time * 1e-9);
+  }
   free(LG);
   free(localscore);
+  free(localscore_ref);
   free(scores);
   free(parents);
   sycl::free(D_LG, q);
@@ -226,11 +212,9 @@ float findBestGraph(sycl::queue &q, float *D_localscore, int *D_resP,
   float bestls = -99999999.f;
   int bestparent[5];
   int bestpN, total;
-  int node, index;
-  int pre[NODE_N] = {0};
-  int parent[NODE_N] = {0};
-  int posN = 0, i, j, parN, tmp, k, l;
-  float ls = -99999999999.f, score = 0.f;
+  int node;
+  int posN = 0, i, j, parN, tmp;
+  float score = 0.f;
   int blocknum;
 
   for (i = 0; i < NODE_N; i++)
@@ -244,190 +228,56 @@ float findBestGraph(sycl::queue &q, float *D_localscore, int *D_resP,
 
     for (i = 0; i < NODE_N; i++) {
       if (orders[node][i] == 1) {
-        pre[posN++] = i;
+        posN++;
       }
     }
 
-    if (posN >= 0) {
-      total = C(posN, 4) + C(posN, 3) + C(posN, 2) + posN + 1;
-      blocknum = total / (256 * WORKLOAD) + 1;
+    total = C(posN, 4) + C(posN, 3) + C(posN, 2) + posN + 1;
+    blocknum = total / (256 * WORKLOAD) + 1;
 
-      q.memset(D_resP, 0, blocknum * 4 * sizeof(int));
-      q.memset(D_Score, -999999.f, blocknum * sizeof(float));
-      q.memcpy(D_parent, orders[node], NODE_N * sizeof(bool));
+    q.memset(D_resP, 0, blocknum * 4 * sizeof(int));
+    q.memset(D_Score, -999999.f, blocknum * sizeof(float));
+    q.memcpy(D_parent, orders[node], NODE_N * sizeof(bool));
 
-      const int sizePerNode = sizepernode;
-      sycl::range<1> gws(blocknum * 256);
-      sycl::range<1> lws(256);
+    const int sizePerNode = sizepernode;
+    sycl::range<1> gws(blocknum * 256);
+    sycl::range<1> lws(256);
 
-      q.submit([&] (sycl::handler &cgh) {
-        sycl::local_accessor<float, 1> sinblock(sycl::range<1>(256), cgh);
-        cgh.parallel_for<class compute>(
-          sycl::nd_range<1>(gws, lws), [=] (sycl::nd_item<1> item) {
-          computeKernel(WORKLOAD, sizePerNode, D_localscore,
-            D_parent, node, total, D_Score, D_resP,
-            sinblock.get_multi_ptr<sycl::access::decorated::no>().get(), item);
-        });
+    q.submit([&] (sycl::handler &cgh) {
+      sycl::local_accessor<float, 1> sinblock(sycl::range<1>(256), cgh);
+      cgh.parallel_for<class compute>(
+        sycl::nd_range<1>(gws, lws), [=] (sycl::nd_item<1> item) {
+        computeKernel(WORKLOAD, sizePerNode, D_localscore,
+          D_parent, node, total, D_Score, D_resP,
+          sinblock.get_multi_ptr<sycl::access::decorated::no>().get(), item);
       });
+    });
 
-      q.memcpy(parents, D_resP, blocknum * 4 * sizeof(int));
-      q.memcpy(scores, D_Score, blocknum * sizeof(float));
+    q.memcpy(parents, D_resP, blocknum * 4 * sizeof(int));
+    q.memcpy(scores, D_Score, blocknum * sizeof(float));
 
-      q.wait();
+    q.wait();
 
-      for (i = 0; i < blocknum; i++) {
+    for (i = 0; i < blocknum; i++) {
 
-        if (scores[i] > bestls) {
+      if (scores[i] > bestls) {
 
-          bestls = scores[i];
+        bestls = scores[i];
 
-          parN = 0;
-          for (tmp = 0; tmp < 4; tmp++) {
-            if (parents[i * 4 + tmp] < 0)
-              break;
+        parN = 0;
+        for (tmp = 0; tmp < 4; tmp++) {
+          if (parents[i * 4 + tmp] < 0)
+            break;
 
-            bestparent[tmp] = parents[i * 4 + tmp];
+          bestparent[tmp] = parents[i * 4 + tmp];
 
-            parN++;
-          }
-
-          bestpN = parN;
+          parN++;
         }
-      }
-    } else {
-      if (posN >= 4) {
-        for (i = 0; i < posN; i++) {
-          for (j = i + 1; j < posN; j++) {
-            for (k = j + 1; k < posN; k++) {
-              for (l = k + 1; l < posN; l++) {
-                parN = 4;
-                if (pre[i] > node)
-                  parent[1] = pre[i];
-                else
-                  parent[1] = pre[i] + 1;
-                if (pre[j] > node)
-                  parent[2] = pre[j];
-                else
-                  parent[2] = pre[j] + 1;
-                if (pre[k] > node)
-                  parent[3] = pre[k];
-                else
-                  parent[3] = pre[k] + 1;
-                if (pre[l] > node)
-                  parent[4] = pre[l];
-                else
-                  parent[4] = pre[l] + 1;
 
-                index = findindex(parent, parN);
-                index += sizepernode * node;
-                ls = localscore[index];
-
-                if (ls > bestls) {
-                  bestls = ls;
-                  bestpN = parN;
-                  for (tmp = 0; tmp < parN; tmp++)
-                    bestparent[tmp] = parent[tmp + 1];
-                }
-              }
-            }
-          }
-        }
-      }
-
-      if (posN >= 3) {
-        for (i = 0; i < posN; i++) {
-          for (j = i + 1; j < posN; j++) {
-            for (k = j + 1; k < posN; k++) {
-
-              parN = 3;
-              if (pre[i] > node)
-                parent[1] = pre[i];
-              else
-                parent[1] = pre[i] + 1;
-              if (pre[j] > node)
-                parent[2] = pre[j];
-              else
-                parent[2] = pre[j] + 1;
-              if (pre[k] > node)
-                parent[3] = pre[k];
-              else
-                parent[3] = pre[k] + 1;
-
-              index = findindex(parent, parN);
-              index += sizepernode * node;
-              ls = localscore[index];
-
-              if (ls > bestls) {
-                bestls = ls;
-                bestpN = parN;
-                for (tmp = 0; tmp < parN; tmp++)
-                  bestparent[tmp] = parent[tmp + 1];
-              }
-            }
-          }
-        }
-      }
-
-      if (posN >= 2) {
-        for (i = 0; i < posN; i++) {
-          for (j = i + 1; j < posN; j++) {
-
-            parN = 2;
-            if (pre[i] > node)
-              parent[1] = pre[i];
-            else
-              parent[1] = pre[i] + 1;
-            if (pre[j] > node)
-              parent[2] = pre[j];
-            else
-              parent[2] = pre[j] + 1;
-
-            index = findindex(parent, parN);
-            index += sizepernode * node;
-            ls = localscore[index];
-
-            if (ls > bestls) {
-              bestls = ls;
-              bestpN = parN;
-              for (tmp = 0; tmp < parN; tmp++)
-                bestparent[tmp] = parent[tmp + 1];
-            }
-          }
-        }
-      }
-
-      if (posN >= 1) {
-        for (i = 0; i < posN; i++) {
-
-          parN = 1;
-          if (pre[i] > node)
-            parent[1] = pre[i];
-          else
-            parent[1] = pre[i] + 1;
-
-          index = findindex(parent, parN);
-          index += sizepernode * node;
-          ls = localscore[index];
-
-          if (ls > bestls) {
-            bestls = ls;
-            bestpN = parN;
-            for (tmp = 0; tmp < parN; tmp++)
-              bestparent[tmp] = parent[tmp + 1];
-          }
-        }
-      }
-
-      parN = 0;
-      index = sizepernode * node;
-
-      ls = localscore[index];
-
-      if (ls > bestls) {
-        bestls = ls;
-        bestpN = 0;
+        bestpN = parN;
       }
     }
+
     if (bestls > -99999999.f) {
 
       for (i = 0; i < bestpN; i++) {
@@ -491,9 +341,10 @@ void initial() {
   tmp *= NODE_N;
 
   localscore = (float*) malloc(tmp * sizeof(float));
+  localscore_ref = (float*) malloc(tmp * sizeof(float));
 
   for (i = 0; i < tmp; i++)
-    localscore[i] = 0;
+    localscore_ref[i] = localscore[i] = 0;
 
   for (i = 0; i < NODE_N; i++) {
     for (j = 0; j < NODE_N; j++)
