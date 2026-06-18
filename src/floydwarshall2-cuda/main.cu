@@ -394,6 +394,8 @@ void FWrem_64(
     idx2_b += tile;
   }
 
+  __syncthreads();
+
   if ((y == z) && (y == x + 1) && (x != subm1)) { // the diagonal in next iteration
     const int idx1_aa = lane_a * tile + warp_a;
     const int idx1_ab = lane_b * tile + warp_a;
@@ -409,7 +411,6 @@ void FWrem_64(
       if (warp_a == k) s_kj[idx2_b] = ij_ab;
       if (warp_b == k) s_kj[idx2_a] = ij_ba;
       if (warp_b == k) s_kj[idx2_b] = ij_bb;
-      __syncthreads();
 
       mtype ik_a, ik_b;
       if (k < ws) {
@@ -421,6 +422,7 @@ void FWrem_64(
         ik_b = __shfl_sync(~0, ij_bb, k - ws);
       }
 
+      __syncthreads();
       const mtype sk_a = s_kj[idx2_a];
       const mtype sk_b = s_kj[idx2_b];
 

@@ -387,6 +387,8 @@ void FWrem_64(mtype* const __restrict AdjMat,
     idx2_b += tile;
   }
 
+  item.barrier(sycl::access::fence_space::local_space);
+
   if ((y == z) && (y == x + 1) && (x != subm1)) { // the diagonal in next iteration
     const int idx1_aa = lane_a * tile + warp_a;
     const int idx1_ab = lane_b * tile + warp_a;
@@ -403,8 +405,6 @@ void FWrem_64(mtype* const __restrict AdjMat,
       if (warp_b == k) s_kj[idx2_a] = ij_ba;
       if (warp_b == k) s_kj[idx2_b] = ij_bb;
 
-      item.barrier(sycl::access::fence_space::local_space);
-
       mtype ik_a, ik_b;
       auto sg = item.get_sub_group(); 
       if (k < ws) {
@@ -415,6 +415,8 @@ void FWrem_64(mtype* const __restrict AdjMat,
         ik_a = sycl::select_from_group(sg, ij_ab, k - ws);
         ik_b = sycl::select_from_group(sg, ij_bb, k - ws);
       }
+
+      item.barrier(sycl::access::fence_space::local_space);
 
       const mtype sk_a = s_kj[idx2_a];
       const mtype sk_b = s_kj[idx2_b];
