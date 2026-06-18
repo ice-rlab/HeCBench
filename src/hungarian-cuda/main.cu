@@ -140,12 +140,17 @@ __global__ void init()
 // a) Subtracting the row by the minimum in each row
 const int n_rows_per_block = n / n_blocks_reduction;
 
-__device__ void min_in_rows_warp_reduce(volatile data* sdata, int tid) {
+__device__ void min_in_rows_warp_reduce(data* sdata, int tid) {
   if (n_threads_reduction >= 64 && n_rows_per_block < 64) sdata[tid] = min(sdata[tid], sdata[tid + 32]);
+  __syncwarp();
   if (n_threads_reduction >= 32 && n_rows_per_block < 32) sdata[tid] = min(sdata[tid], sdata[tid + 16]);
+  __syncwarp();
   if (n_threads_reduction >= 16 && n_rows_per_block < 16) sdata[tid] = min(sdata[tid], sdata[tid + 8]);
+  __syncwarp();
   if (n_threads_reduction >= 8 && n_rows_per_block < 8) sdata[tid] = min(sdata[tid], sdata[tid + 4]);
+  __syncwarp();
   if (n_threads_reduction >= 4 && n_rows_per_block < 4) sdata[tid] = min(sdata[tid], sdata[tid + 2]);
+  __syncwarp();
   if (n_threads_reduction >= 2 && n_rows_per_block < 2) sdata[tid] = min(sdata[tid], sdata[tid + 1]);
 }
 
@@ -181,12 +186,17 @@ __global__ void calc_min_in_rows()
 // a) Subtracting the column by the minimum in each column
 const int n_cols_per_block = n / n_blocks_reduction;
 
-__device__ void min_in_cols_warp_reduce(volatile data* sdata, int tid) {
+__device__ void min_in_cols_warp_reduce(data* sdata, int tid) {
   if (n_threads_reduction >= 64 && n_cols_per_block < 64) sdata[tid] = min(sdata[tid], sdata[tid + 32]);
+  __syncwarp();
   if (n_threads_reduction >= 32 && n_cols_per_block < 32) sdata[tid] = min(sdata[tid], sdata[tid + 16]);
+  __syncwarp();
   if (n_threads_reduction >= 16 && n_cols_per_block < 16) sdata[tid] = min(sdata[tid], sdata[tid + 8]);
+  __syncwarp();
   if (n_threads_reduction >= 8 && n_cols_per_block < 8) sdata[tid] = min(sdata[tid], sdata[tid + 4]);
+  __syncwarp();
   if (n_threads_reduction >= 4 && n_cols_per_block < 4) sdata[tid] = min(sdata[tid], sdata[tid + 2]);
+  __syncwarp();
   if (n_threads_reduction >= 2 && n_cols_per_block < 2) sdata[tid] = min(sdata[tid], sdata[tid + 1]);
 }
 
@@ -452,12 +462,17 @@ __global__ void step_5b()
 // Return to Step 4 without altering any stars, primes, or covered lines.
 
 template <unsigned int blockSize>
-__device__ void min_warp_reduce(volatile data* sdata, int tid) {
+__device__ void min_warp_reduce(data* sdata, int tid) {
   if (blockSize >= 64) sdata[tid] = min(sdata[tid], sdata[tid + 32]);
+  __syncwarp();
   if (blockSize >= 32) sdata[tid] = min(sdata[tid], sdata[tid + 16]);
+  __syncwarp();
   if (blockSize >= 16) sdata[tid] = min(sdata[tid], sdata[tid + 8]);
+  __syncwarp();
   if (blockSize >= 8) sdata[tid] = min(sdata[tid], sdata[tid + 4]);
+  __syncwarp();
   if (blockSize >= 4) sdata[tid] = min(sdata[tid], sdata[tid + 2]);
+  __syncwarp();
   if (blockSize >= 2) sdata[tid] = min(sdata[tid], sdata[tid + 1]);
 }
 
