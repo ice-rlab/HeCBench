@@ -121,7 +121,7 @@ int read_input_size(int &n_nodes, int &n_edges, const Params &p) {
     printf("Error: failed to read file %s. Exit\n", p.file_name);
     return -1;
   }
-    
+
   fscanf(fp, "%d", &n_nodes);
   fscanf(fp, "%d", &n_edges);
   if(fp) fclose(fp);
@@ -224,6 +224,8 @@ __global__ void SSSP_gpu(
       }
       __syncthreads();
     }
+
+    __syncthreads(); // l_q2 read complete
 
     if(my_base + tid < n_t_local && *overflow == 0) {
       // Visit a node from the current frontier
@@ -522,7 +524,7 @@ int main(int argc, char **argv) {
           if(rep >= p.n_warmup)
             timer.stop("Copy To Device");
 
-          assert(p.n_gpu_threads <= max_gpu_threads && 
+          assert(p.n_gpu_threads <= max_gpu_threads &&
               "The thread block size is greater than the maximum thread block size that can be used on this device");
 
           dim3 dimGrid(p.n_gpu_blocks);

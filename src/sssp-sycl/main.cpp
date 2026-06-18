@@ -246,6 +246,7 @@ void SSSP_gpu(
       }
       item.barrier(sycl::access::fence_space::local_space);
     }
+    item.barrier(sycl::access::fence_space::local_space); // l_q2 read complete
 
     if(my_base + tid < n_t_local && *overflow == 0) {
       // Visit a node from the current frontier
