@@ -1,4 +1,3 @@
-
 /**
  *
  *  @file cuThomasBatch.cu
@@ -67,34 +66,34 @@
  **/
 #include "cuThomasBatch.h"
 
-__global__ void cuThomasBatch(
-            const double *L, const double *D, double *U, double *RHS,
-            const int M,
-            const int BATCHCOUNT
-    ) {
+__global__ void cuThomasBatch(const double *__restrict__ L,
+                              const double *__restrict__ D,
+                                    double *__restrict__ U,
+                                    double *__restrict__ RHS,
+                              const int M,
+                              const int BATCHCOUNT)
+{
+  int tid = threadIdx.x + blockDim.x*blockIdx.x;
 
-        int tid = threadIdx.x + blockDim.x*blockIdx.x;
+  if(tid < BATCHCOUNT) {
 
-        if(tid < BATCHCOUNT) {
+    int first = tid;
+    int last  = BATCHCOUNT*(M-1)+tid;
 
-            int first = tid;
-            int last  = BATCHCOUNT*(M-1)+tid;
+    U[first] /= D[first];
+    RHS[first] /= D[first];
 
-            U[first] /= D[first];
-            RHS[first] /= D[first];
+    for (int i = first + BATCHCOUNT; i < last; i+=BATCHCOUNT) {
+      U[i] /= D[i] - L[i] * U[i-BATCHCOUNT];
+      RHS[i] = ( RHS[i] - L[i] * RHS[i-BATCHCOUNT] ) / 
+        ( D[i] - L[i] * U[i-BATCHCOUNT] );
+    }
 
-            for (int i = first + BATCHCOUNT; i < last; i+=BATCHCOUNT) {
-                U[i] /= D[i] - L[i] * U[i-BATCHCOUNT];
-                RHS[i] = ( RHS[i] - L[i] * RHS[i-BATCHCOUNT] ) / 
-							( D[i] - L[i] * U[i-BATCHCOUNT] );
-            }
+    RHS[last] = ( RHS[last] - L[last] * RHS[last-BATCHCOUNT] ) / 
+      ( D[last] - L[last] * U[last-BATCHCOUNT] );
 
-            RHS[last] = ( RHS[last] - L[last] * RHS[last-BATCHCOUNT] ) / 
-							( D[last] - L[last] * U[last-BATCHCOUNT] );
-
-            for (int i = last-BATCHCOUNT; i >= first; i-=BATCHCOUNT) {
-                RHS[i] -= U[i] * RHS[i+BATCHCOUNT];
-            }
-       }
-        
+    for (int i = last-BATCHCOUNT; i >= first; i-=BATCHCOUNT) {
+      RHS[i] -= U[i] * RHS[i+BATCHCOUNT];
+    }
+  }
 }

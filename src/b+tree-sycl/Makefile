@@ -27,7 +27,7 @@ HIP_ARCH  = gfx908
 
 # Standard Flags
 CFLAGS := $(EXTRA_CFLAGS) -std=c++17 -fsycl -Wall \
-          -I. -I./util/num -I./util/timer -I./kernel \
+          -I. -I./util/num -I./kernel \
           --gcc-toolchain=$(GCC_TOOLCHAIN)
 
 ifeq ($(VENDOR), AdaptiveCpp)
@@ -66,18 +66,16 @@ endif
 # Targets to Build
 #===============================================================================
 
-b+tree.out:./main.o \
+main:./main.o \
            ./kernel/kernel_wrapper.o \
            ./kernel/kernel2_wrapper.o \
-           ./util/timer/timer.o \
            ./util/num/num.o 
 	$(CC) $(CFLAGS)	./main.o \
 			./kernel/kernel_wrapper.o \
 			./kernel/kernel2_wrapper.o \
-			./util/timer/timer.o \
 			./util/num/num.o \
 			$(LDFLAGS) \
-	                -o b+tree.out
+			-o main
 
 
 main.o:	./b+tree.h ./main.c
@@ -101,14 +99,6 @@ main.o:	./b+tree.h ./main.c
 		-o ./kernel/kernel2_wrapper.o 
 
 
-./util/timer/timer.o: ./b+tree.h \
-                  ./util/timer/timer.h \
-                  ./util/timer/timer.c
-	$(CC)	./util/timer/timer.c \
-		-c \
-		-o ./util/timer/timer.o \
-		-O3
-
 ./util/num/num.o: ./b+tree.h \
                   ./util/num/num.h \
                   ./util/num/num.c
@@ -117,12 +107,12 @@ main.o:	./b+tree.h ./main.c
 		-o ./util/num/num.o \
 		-O3
 
-run: b+tree.out
-	$(LAUNCHER) ./b+tree.out file ../data/b+tree/mil.txt command ../data/b+tree/command.txt
+run: main
+	$(LAUNCHER) ./main file ../data/b+tree/mil.txt command ../data/b+tree/command.txt
 
 clean:
 	rm -f	*.o *.out \
 		./kernel/*.o \
-		./util/timer/*.o \
 		./util/num/*.o \
-		output.txt
+		output.txt \
+		main

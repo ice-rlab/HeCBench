@@ -30,9 +30,25 @@ sudo apt install libboost-dev libgsl-dev
 
 This quick start uses [uv](https://docs.astral.sh/uv/) to install [DVC](https://dvc.org/) with [s3](https://aws.amazon.com/s3/) remote storage support. After installation, the data is pulled and checked out using the `dvc pull` command.
 
+### Install [uv](https://docs.astral.sh/uv/)
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
-uv tool install 'dvc[s3]'
+```
+
+### To add $HOME/.local/bin to your PATH, either restart your shell or run:
+
+```bash
+    source $HOME/.local/bin/env (sh, bash, zsh)
+    source $HOME/.local/bin/env.fish (fish)
+```
+
+### Install [DVC](https://dvc.org/) with [s3](https://aws.amazon.com/s3/)
+```bash
+uv tool install dvc[s3]
+```
+
+### Pull benchmark data
+```bash
 dvc pull
 ```
 
@@ -58,7 +74,7 @@ Each benchmark falls into a single category. While such classification is not ac
     atomicAggregate, atomicCAS, atomicCost, atomicIntrinsics, atomicPerf, atomicSystemWide, bitpacking, bscan, bwt, compute-score, contract, dxtc2, filter, fma, fpc, histogram, lzss, minmax, mpc, mtf, quantAQLM, quantBnB, quantVLLM, rle, sc, scan, scan2, scan3, scatter, scatterAdd, scatterThrust, segment-reduce
 
 ### Data encoding, decoding, or verification
-    ans, crc64, crs, entropy, jenkins-hash, kiss, ldpc, md5hash, murmurhash3
+    ans, base64e, crc64, crs, entropy, jenkins-hash, kiss, ldpc, md5hash, murmurhash3
 
 ### Finance
     aop, black-scholes, binomial, bonds, libor
@@ -73,10 +89,10 @@ Each benchmark falls into a single category. While such classification is not ac
     adjacent, aligned-types, asta, blockAccess, blockexchange, blockScan, collision, concurrentKernels, conversion, dispatch, dp4a, graphExecution, ert, interleave, intrinsics-cast, kernelLaunch, layout, mallocFree, maxFlops, mixbench, nosync, openmp, overlap, pad, pitch, popcount, pointerchase, prefetch, reverse, ring, saxpy-ompt, shuffle, simpleMultiDevice, streamCreateCopyDestroy, streamOrderedAllocation, streamPriority, streamUM, tensorAccessor, threadfence, warpexchange, vote, wmma, wordcount, zerocopy 
 
 ### Machine learning  
-    accuracy, adam, adamw, addBiasQKV, addBiasResidualLayerNorm, attention, attention-paged, attentionMultiHead, backprop, bincount, bn, channelShuffle, channelSum, clink, concat, crossEntropy, dense-embedding, dropout, dwconv, dwconv1d, expdist, flip, gd, gelu, ge-spmm, geglu, glu, gmm, gru, kalman, kmc, kmeans, knn, layernorm, lda, lif, logprob, lr, lrn, mask, matern, maxpool3d, mcpr, meanshift, mf-sgd, mmcsf, mnist, moe, moe-align, moe-sum, mrc, multinomial, nlll, nonzero, overlay, p4, page-rank, permute, perplexity, pointwise, pool, qkv, qtclustering, remap, relu, resnet-kernels, rmsnorm, rowwiseMoments, rotary, sampling, scel, silu, snicit, softmax, softmax-fused, softmax-online, ssm, stddev, streamcluster, tsne, unfold, vol2col, wedford, winograd, word2vec
+    accuracy, adam, adamw, addBiasQKV, addBiasResidualLayerNorm, attention, attention-paged, attentionMergeState, attentionMultiHead, attentionMultiHeadKVCache, backprop, bincount, bn, channelShuffle, channelSum, clink, concat, crossEntropy, dense-embedding, dropout, dwconv, dwconv1d, expdist, flip, gd, gelu, ge-spmm, geglu, glu, gmm, gru, kalman, kmc, kmeans, knn, layernorm, lda, lif, logprob, lr, lrn, mask, matern, maxpool3d, mcpr, meanshift, mergeVS, mf-sgd, mlp, mmcsf, mnist, moe, moe-align, moe-sum, mrc, multinomial, nlll, nonzero, overlay, p4, page-rank, permute, perplexity, pointwise, pool, qkv, qtclustering, remap, relu, resnet-kernels, rmsnorm, rowwiseMoments, rotary, sampling, scel, silu, snicit, softmax, softmax-fused, softmax-online, ssm, stddev, streamcluster, tsne, unfold, vol2col, wedford, winograd, word2vec
 
 ### Math
-    atan2, axpby, blas-dot, blas-fp8gemm, blas-gemm, blas-gemmBatched, blas-gemmStridedBatched, blas-gemmEx, blas-gemmEx2, complex, cross, determinant, divergence, dp, eigenvalue, f16max, f16sp, f8cast, fresnel, fwt, gaussian, geam, gels, gemv, hadamard, hellinger, hmm, idivide, interval, jaccard, jacobi, kurtosis, lanczos, langford, lci, lebesgue, leukocyte, lfib4, log2, lud, ludb, lut-gemm, michalewicz, matrix-rotate, matrixT, minkowski, mr, mrg32k3a, norm2, nqueen, ntt, phmm, pnpoly, quant3MatMul, reverse2D, rfs, romberg, rsc, sddmm-batch, secp256k1, simpleSpmv, slu, spd2s, spgeam, spgemm, spmm, spmv, spnnz, sps2d, spsort, sptrsv, thomas, wyllie, zeropoint
+    atan2, axpby, bgmv, blas-dot, blas-fp8gemm, blas-gemm, blas-gemmBatched, blas-gemmStridedBatched, blas-gemmEx, blas-gemmEx2, braycurtis, complex, cross, determinant, divergence, dp, eigenvalue, f16max, f16sp, f8cast, fresnel, fwt, gaussian, geam, gels, gemv, hadamard, hellinger, hmm, idivide, interval, jaccard, jacobi, kurtosis, lanczos, langford, lci, lebesgue, leukocyte, lfib4, log2, lud, ludb, lut-gemm, michalewicz, matrix-rotate, matrixT, minkowski, mr, mrg32k3a, norm2, nqueen, ntt, phmm, pnpoly, quant3MatMul, reverse2D, rfs, romberg, rsc, sddmm-batch, secp256k1, simpleSpmv, slu, spd2s, spgeam, spgemm, spmm, spmv, spnnz, sps2d, spsort, sptrsv, thomas, wyllie, zeropoint
    
 ### Random number generation
     mt, permutate, qrg, rng-wallace, sobol, urng
@@ -330,8 +346,14 @@ Early results are shown [here](results/README.md)
 ### attention-paged (cuda)
   Paged attention (https://github.com/vllm-project/vllm)
 
+### attentionMergeState (cuda)
+  Merge of attention states (https://github.com/sgl-project/sglang/blob/main/sgl-kernel)
+
 ### attentionMultiHead (cuda)
   Implementation of multi-head attention (https://github.com/IrishCoffee/cudnnMultiHeadAttention)
+
+### attentionMultiHeadKVCache (cuda)
+  Implementation of multi-head attention with KV cache (https://github.com/flashinfer-ai/flashinfer)
 
 ### axpby (cuda)
   Sum of multiple scalar-vector products (https://github.com/NVIDIA/apex)
@@ -348,11 +370,17 @@ Early results are shown [here](results/README.md)
 ### backprop (opencl)
   Backpropagation in the Rodinia benchmark suite (http://lava.cs.virginia.edu/Rodinia/download_links.htm)
 
+### base64e (opencl)
+  Base64 encoding (Jin, Z. and Finkel, H., 2019, July. Base64 encoding on heterogeneous computing platforms. In 2019 IEEE 30th International Conference on Application-specific Systems, Architectures and Processors (ASAP) (Vol. 2160, pp. 247-254). IEEE.)
+
 ### bezier-surface (opencl)
   The Bezier surface (https://github.com/chai-benchmarks/chai)
 
 ### bfs (opencl)
   The breadth-first search in the Rodinia benchmark suite (http://lava.cs.virginia.edu/Rodinia/download_links.htm)
+
+### bgmv (cuda)
+  Batched gather matrix-vector multiplication (https://github.com/punica-ai/punica/)
 
 ### bh (cuda)
   Simulate the gravitational forces in a star cluster using the Barnes-Hut n-body algorithm (https://userweb.cs.txstate.edu/~burtscher/research/ECL-BH/)
@@ -422,6 +450,9 @@ Early results are shown [here](results/README.md)
 
 ### boxfilter (cuda)
   Box filtering (http://developer.download.nvidia.com/compute/cuda/3_0/sdk/website/OpenCL/website/samples.html)
+
+### braycurtis (cuda)
+  The Bray-Curtis distance (https://github.com/inspiros/torchpairwise)
 
 ### bscan (cuda)
   Binary scan in a block (Harris, M. and Garland, M., 2012. Optimizing parallel prefix operations for the Fermi architecture. In GPU Computing Gems Jade Edition (pp. 29-38). Morgan Kaufmann.)
@@ -1074,6 +1105,9 @@ Early results are shown [here](results/README.md)
 ### medianfilter (opencl)
   Two-dimensional 3x3 median filter of RGBA image (http://developer.download.nvidia.com/compute/cuda/3_0/sdk/website/OpenCL/website/samples.html)
   
+### mergeVS (cuda)
+  Convert vertical and slash indices to block and column representations (https://github.com/sgl-project/sglang/tree/main)
+  
 ### merkle (sycl)
   Merkle tree construction using rescue prime hash (https://github.com/itzmeanjan/ff-gpu)
   
@@ -1124,6 +1158,9 @@ Early results are shown [here](results/README.md)
 
 ### mixbench (cuda)
   A read-only version of mixbench (https://github.com/ekondis/mixbench)
+
+### mlp (cuda)
+  Multi-layer perceptron that fuses matrix multiplication, bias and ReLU (https://github.com/Dao-AILab/flash-attention)
 
 ### mmcsf (cuda)
   MTTKRP kernel using mixed-mode CSF (https://github.com/isratnisa/MM-CSF)
@@ -1766,7 +1803,7 @@ Early results are shown [here](results/README.md)
 Authored and maintained by Zheming Jin (https://github.com/zjin-lcf) 
 
 ## Acknowledgement
-Abhishek Bagusetty, Andrew Barker, Andrey Alekseenko, Anton Gorshkov, Beau Johnston, Bernhard Esslinger, Bert de Jong, Chengjian Liu, Chris Knight, Daine McNiven, David Oro, David Sanchez, Douglas Franz, Edson Borin, Gabriell Araujo, Georgi Mirazchiyski, Henry Linjamäki, Henry Gabb, Hugh Delaney, Ian Karlin, Istvan Reguly, Jack Kirk, Jason Lau, Jeff Hammond, Jenny Chen, Jeongnim Kim, Jianxin Qiu, Jakub Chlanda, Jiya Su, John Tramm, Ju Zheng, Junchao Zhang, Kali Uday Balleda, Kinman Lei, Luke Drummond, Manish Motwani, Martin Burtscher, Matthias Noack, Matthew Davis, Michael Kruse, Michel Migdal, Mike Franusich, Mike Giles, Mikhail Dvorskiy, Mohammed Alser, Mohammed ,Tarek Ibn Ziad, Muhammad Haseeb, Muaaz Awan, Nevin Liber, Nicholas Miller, Oscar Ludwig, Pavel Samolysov, Pedro Valero Lara, Piotr Różański, Rahulkumar Gayatri, Samyak Gangwal, Shaoyi Peng, Steffen Larsen, Rafal Bielski, Robert Harrison, Robin Kobus, Rod Burns, Rodrigo Vimieiro, Romanov Vlad, Tadej Ciglarič, Thomas Applencourt, Tiago Carneiro, Tiago Cogumbreiro, Timmie Smith, Tobias Baumann, Usman Roshan, Wayne Joubert, Ye Luo, Yongbin Gu, Zhe Chen
+Abhishek Bagusetty, Andrew Barker, Andrey Alekseenko, Anton Gorshkov, Beau Johnston, Bernhard Esslinger, Bert de Jong, Chengjian Liu, Chris Knight, Daine McNiven, David Oro, David Sanchez, Douglas Franz, Edson Borin, Gabriell Araujo, Georgi Mirazchiyski, Henry Linjamäki, Henry Gabb, Hugh Delaney, Ian Karlin, Istvan Reguly, Jack Kirk, Jason Lau, Jeff Hammond, Jenny Chen, Jeongnim Kim, Jianxin Qiu, Jakub Chlanda, Jiya Su, John Tramm, Ju Zheng, Junchao Zhang, Kali Uday Balleda, Kinman Lei, Luke Drummond, Manish Motwani, Mark Stephenson, Martin Burtscher, Matthias Noack, Matthew Davis, Michael Kruse, Michel Migdal, Mike Franusich, Mike Giles, Mikhail Dvorskiy, Mohammed Alser, Mohammed ,Tarek Ibn Ziad, Muhammad Haseeb, Muaaz Awan, Nevin Liber, Nicholas Miller, Oscar Ludwig, Pavel Samolysov, Pedro Valero Lara, Piotr Różański, Rahulkumar Gayatri, Samyak Gangwal, Shaoyi Peng, Steffen Larsen, Rafal Bielski, Robert Harrison, Robin Kobus, Rod Burns, Rodrigo Vimieiro, Romanov Vlad, Tadej Ciglarič, Thomas Applencourt, Tiago Carneiro, Tiago Cogumbreiro, Timmie Smith, Tobias Baumann, Usman Roshan, Wayne Joubert, Ye Luo, Yongbin Gu, Zhe Chen, Zhihui Du
 
 Codeplay<sup>®</sup> and Intel<sup>®</sup> for their contributions to the oneAPI ecosystem   
 

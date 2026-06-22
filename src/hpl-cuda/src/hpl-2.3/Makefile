@@ -109,11 +109,11 @@ startup          :
 	$(MAKE) -f Make.top refresh_src     arch=$(arch)
 	$(MAKE) -f Make.top refresh_tst     arch=$(arch)
 #
-refresh          :
+refresh          : startup
 	$(MAKE) -f Make.top refresh_src     arch=$(arch)
 	$(MAKE) -f Make.top refresh_tst     arch=$(arch)
 #
-build            :
+build            : startup refresh
 	$(MAKE) -f Make.top build_src       arch=$(arch)
 	$(MAKE) -f Make.top build_tst       arch=$(arch)
 #

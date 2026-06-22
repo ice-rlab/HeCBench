@@ -1,17 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
+#include <chrono>
 #include "linear.h"
-
-double gettime() {
-  struct timeval t;
-  gettimeofday(&t, NULL);
-  return t.tv_sec + t.tv_usec * 1e-6;
-}
-
-clock_t start;
-clock_t end;
 
 extern int cpu_offset;
 
@@ -70,7 +61,7 @@ static void write_results(results_t * results, const char * restricts) {
 int main(int argc, char* argv[]) {
   results_t results = {{0}};
   if (argc != 3) {
-    printf("Usage: linear <repeat> <cpu offset>\n");
+    printf("Usage: %s <repeat> <cpu offset>\n", argv[0]);
     printf("Device execution only when cpu offset is 0\n");
     printf("Host execution only when cpu offset is 100\n");
     exit(0);
@@ -80,12 +71,13 @@ int main(int argc, char* argv[]) {
   cpu_offset = atoi(argv[2]);
   printf("CPU offset: %d\n", cpu_offset);
 
-  double starttime = gettime();
+  auto start = std::chrono::steady_clock::now();
 
   temperature_regression(&results, repeat);
 
-  double endtime = gettime();
-  printf("Total execution time: %lf ms\n", 1000.0 * (endtime - starttime));
+  auto end = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+  printf("Total execution time: %lf ms\n", time * 1e-6);
 
   printf("Average kernel execution time: %lf us\n",
          results.parallelized.ktime * 1e-3 / repeat);

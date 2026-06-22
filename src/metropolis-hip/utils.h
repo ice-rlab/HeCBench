@@ -5,13 +5,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
-#include <sys/time.h>
+#include <chrono>
 #include <iostream>
 
 #include "heap.h"
 
-#define cudaCheckErrors(msg) \
+#define hipCheckErrors(msg) \
   do { \
     hipError_t __err = hipGetLastError(); \
     if (__err != hipSuccess) { \

@@ -1,4 +1,3 @@
-#include <sys/types.h>
 #include <chrono>
 #include <cuda.h>
 #include "3D_helper.h"
@@ -143,7 +142,7 @@ int main(int argc, char** argv)
 
   memcpy(tCopy,tIn, size * sizeof(float));
 
-  long long start = get_time();
+  auto start = std::chrono::steady_clock::now();
 
   float *d_tIn, *d_pIn, *d_tOut;
   cudaMalloc((void**)&d_tIn, sizeof(float)*size);
@@ -180,14 +179,14 @@ int main(int argc, char** argv)
   cudaFree(d_tIn);
   cudaFree(d_pIn);
   cudaFree(d_tOut);
-  long long stop = get_time();
+  auto end = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
 
   float* answer = (float*)calloc(size, sizeof(float));
   computeTempCPU(pIn, tCopy, answer, numCols, numRows, layers, Cap, Rx, Ry, Rz, dt, amb_temp, iterations);
 
   float acc = accuracy(tOut,answer,numRows*numCols*layers);
-  float time = (float)((stop - start)/(1000.0 * 1000.0));
-  printf("Device offloading time: %.3f (s)\n",time);
+  printf("Device offloading time: %.3f (s)\n",time * 1e-9);
   printf("Root-mean-square error: %e\n",acc);
 
   writeoutput(tOut,numRows,numCols,layers,ofile);

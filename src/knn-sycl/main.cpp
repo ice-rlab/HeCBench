@@ -11,7 +11,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/time.h>
+#include <chrono>
 #include <sycl/sycl.hpp>
 
 // Constants used by the program
@@ -34,8 +34,14 @@
  * matrix
   *
   */
-void knn_parallel(sycl::queue &q, float *ref_host, int ref_width, float *query_host,
-              int query_width, int height, int k, float *dist_host, int *ind_host) {
+void knn_parallel(float *ref_host, int ref_width, float *query_host,
+                  int query_width, int height, int k, float *dist_host, int *ind_host) {
+
+#ifdef USE_GPU
+  sycl::queue q(sycl::gpu_selector_v, sycl::property::queue::in_order());
+#else
+  sycl::queue q(sycl::cpu_selector_v, sycl::property::queue::in_order());
+#endif
 
   unsigned int size_of_float = sizeof(float);
   unsigned int size_of_int = sizeof(int);
@@ -70,11 +76,6 @@ void knn_parallel(sycl::queue &q, float *ref_host, int ref_width, float *query_h
     auto AB = dist_dev;
     sycl::local_accessor<float, 2> shared_A (sycl::range<2>{BLOCK_DIM, BLOCK_DIM}, h);
     sycl::local_accessor<float, 2> shared_B (sycl::range<2>{BLOCK_DIM, BLOCK_DIM}, h);
-    sycl::local_accessor<int, 0> begin_A (h);
-    sycl::local_accessor<int, 0> begin_B (h);
-    sycl::local_accessor<int, 0> step_A (h);
-    sycl::local_accessor<int, 0> step_B (h);
-    sycl::local_accessor<int, 0> end_A (h);
     h.parallel_for<class ComputeDistanceGlobal>(
       sycl::nd_range<2>(g_16x16, t_16x16), [=] (sycl::nd_item<2> item) {
       // Thread index
@@ -86,11 +87,11 @@ void knn_parallel(sycl::queue &q, float *ref_host, int ref_width, float *query_h
       float ssd = 0;
 
       // Loop parameters
-      begin_A = BLOCK_DIM * item.get_group(0);
-      begin_B = BLOCK_DIM * item.get_group(1);
-      step_A  = BLOCK_DIM * ref_width;
-      step_B  = BLOCK_DIM * query_width;
-      end_A   = begin_A + (height - 1) * ref_width;
+      int begin_A = BLOCK_DIM * item.get_group(0);
+      int begin_B = BLOCK_DIM * item.get_group(1);
+      int step_A  = BLOCK_DIM * ref_width;
+      int step_B  = BLOCK_DIM * query_width;
+      int end_A   = begin_A + (height - 1) * ref_width;
 
       // Conditions
       int cond0 = (begin_A + tx < ref_width); // used to write in shared memory
@@ -377,37 +378,25 @@ int main(int argc, char* argv[]) {
     return EXIT_FAILURE;
   }
 
-  struct timeval tic;
-  struct timeval toc;
-  float elapsed_time;
-
   printf("On CPU: \n");
-  gettimeofday(&tic, NULL);
+  auto start = std::chrono::steady_clock::now();
   for (i = 0; i < c_iterations; i++) {
     knn_serial(ref, ref_nb, query, query_nb, dim, k, dist, ind);
   }
-  gettimeofday(&toc, NULL);
-  elapsed_time = toc.tv_sec - tic.tv_sec;
-  elapsed_time += (toc.tv_usec - tic.tv_usec) / 1000000.;
-  printf(" done in %f s for %d iterations (%f s by iteration)\n", elapsed_time,
-         c_iterations, elapsed_time / (c_iterations));
-
-#ifdef USE_GPU
-  sycl::queue q(sycl::gpu_selector_v, sycl::property::queue::in_order());
-#else
-  sycl::queue q(sycl::cpu_selector_v, sycl::property::queue::in_order());
-#endif
+  auto end = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+  printf(" done in %f s for %d iterations (%f s by iteration)\n", time * 1e-9,
+         c_iterations, time * 1e-9 / (c_iterations));
 
   printf("on GPU: \n");
-  gettimeofday(&tic, NULL);
+  start = std::chrono::steady_clock::now();
   for (i = 0; i < iterations; i++) {
-    knn_parallel(q, ref, ref_nb, query, query_nb, dim, k, dist, ind);
+    knn_parallel(ref, ref_nb, query, query_nb, dim, k, dist, ind);
   }
-  gettimeofday(&toc, NULL);
-  elapsed_time = toc.tv_sec - tic.tv_sec;
-  elapsed_time += (toc.tv_usec - tic.tv_usec) / 1000000.;
-  printf(" done in %f s for %d iterations (%f s by iteration)\n", elapsed_time,
-         iterations, elapsed_time / (iterations));
+  end = std::chrono::steady_clock::now();
+  time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+  printf(" done in %f s for %d iterations (%f s by iteration)\n", time * 1e-9,
+         c_iterations, time * 1e-9 / (c_iterations));
 
   for (int i = 0; i < query_nb * k; ++i) {
     if (fabs(dist[i] - knn_dist[i]) <= precision) {

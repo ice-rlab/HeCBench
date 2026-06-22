@@ -17,8 +17,6 @@
 // against basic host CPU/C++ computation.
 // *********************************************************************
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <chrono>
 #include <cmath>
 #include <random>

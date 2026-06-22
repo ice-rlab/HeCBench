@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <sys/time.h>
 #include <string.h>
+#include <chrono>
 #include <omp.h>
 #include "utils.h"
 #include "utils.cpp"
@@ -211,7 +211,7 @@ int main( int argc, char** argv )
   n = vslocal_size * sizeof(P);
   P* vslocal = (P*) malloc ( n ); 
 
-  double time, ktime = 0.0;
+  long ktime = 0;
 
   #pragma omp target data map(to: a_from_m[0:a_from_m_size],\
                                   m_from_a[0:a_from_m_size],\
@@ -221,256 +221,257 @@ int main( int argc, char** argv )
                                      faceyz[0:faceyz_size],\
                                      vslocal[0:vslocal_size],\
                                      vo[0:v_size]) 
-{
-  // measure host and device execution time
-  double k_start, k_end;
-  double t1 = get_time();
-
-  for(int iteration=0; iteration<niterations; ++iteration )
   {
-    // compute the value of next step
-    const int nstep = StepScheduler_nstep( &(sweeper.stepscheduler) );
-#ifdef DEBUG
-    printf("iteration %d next step = %d\n", iteration, nstep);
-#endif
-
-    for (int step = 0; step < nstep; ++step) {
-
-      Dimensions dims = sweeper.dims;
-      Dimensions dims_b = sweeper.dims_b;
-      int dims_b_ncell_x = dims_b.ncell_x;
-      int dims_b_ncell_y = dims_b.ncell_y;
-      int dims_b_ncell_z = dims_b.ncell_z;
-      int dims_ncell_z = dims.ncell_z;
-      int dims_b_ne = dims_b.ne;
-      int dims_b_na = dims_b.na;
-      //int dims_b_nm = dims_b.nm;
-
-      //int v_size = dims.ncell_x * dims.ncell_y * dims.ncell_z * dims.ne * dims.nm * NU;
-      //int a_from_m_size = sizeof(P) * dims_b.nm * dims_b.na * NOCTANT;
-      //int m_from_a_size = sizeof(P) * dims_b.nm * dims_b.na * NOCTANT;
-      //int vslocal_size = sizeof(P) * dims_b.na * NU * dims_b.ne * NOCTANT * dims_b.ncell_x * dims_b.ncell_y;
-
-      int v_b_size = dims_b.ncell_x * dims_b.ncell_y * dims_b.ncell_z * dims_b.ne * dims_b.nm * NU;
-
-      StepInfoAll stepinfoall;  /*---But only use noctant_per_block values---*/
-
-      for(int octant_in_block=0; octant_in_block<noctant_per_block; ++octant_in_block )
-      {
-        stepinfoall.stepinfo[octant_in_block] = StepScheduler_stepinfo(
-            &(sweeper.stepscheduler), step, octant_in_block, 
-            0, //proc_x, 
-            0  //proc_y 
-            );
-      }
-
-      const int ix_base = 0;
-      const int iy_base = 0;
-
-      const int num_wavefronts = dims_b_ncell_z + dims_b_ncell_y + dims_b_ncell_x - 2;
-
-      const int is_first_step = 0 == step;
-      const int is_last_step = nstep - 1 == step;
-
-      if (is_first_step) {
-         k_start = get_time();
-
-         memset(vo, 0, v_size * sizeof(P));
-         #pragma omp target update to(vo[0:v_size])
-
-         #pragma omp target teams distribute parallel for collapse(3)
-         for( int octant=0; octant<NOCTANT; ++octant )
-         for( int iy=0; iy<dims_b_ncell_y; ++iy )
-         for( int ix=0; ix<dims_b_ncell_x; ++ix )
-           for(int ie=0; ie<dims_b_ne; ++ie )
-             for(int iu=0; iu<NU; ++iu )
-               for(int ia=0; ia<dims_b_na; ++ia )
-               {
-                 const int dir_z = Dir_z( octant );
-                 const int iz = dir_z == DIR_UP ? -1 : dims_b_ncell_z;
-
-                 const int ix_g = ix + ix_base; // dims_b_ncell_x * proc_x;
-                 const int iy_g = iy + iy_base; // dims_b_ncell_y * proc_y;
-                 const int iz_g = iz + (dir_z == DIR_UP ? 0 : dims_ncell_z - dims_b_ncell_z);
-                 //const int iz_g = iz + stepinfoall.stepinfo[octant].block_z * dims_b_ncell_z;
-
-                 /*--- Quantities_scalefactor_space_ inline ---*/
-                 const int scalefactor_space
-                   = Quantities_scalefactor_space_acceldir(ix_g, iy_g, iz_g);
-
-                 /*--- ref_facexy inline ---*/
-                 facexy[FACEXY_ADDR(dims_b_ncell_x, dims_b_ncell_y)]
-                   /*--- Quantities_init_face routine ---*/
-                   = Quantities_init_face_acceldir(ia, ie, iu, scalefactor_space, octant);
-               } /*---for---*/
-
-#ifdef DEBUG
-         #pragma omp target update from (facexy[0:facexy_size])
-         for (int i = 0; i < facexy_size; i++)
-           printf("facexy: %d %f\n", i, facexy[i]);
-#endif
-      }
-
-      #pragma omp target teams distribute parallel for collapse(3)
-      for( int octant=0; octant<NOCTANT; ++octant )
-      for( int iz=0; iz<dims_b_ncell_z; ++iz )
-      for( int ix=0; ix<dims_b_ncell_x; ++ix )
-        for(int ie=0; ie<dims_b_ne; ++ie )
-          for(int iu=0; iu<NU; ++iu )
-            for(int ia=0; ia<dims_b_na; ++ia )
-            {
-              const int dir_y = Dir_y( octant );
-              const int iy = dir_y == DIR_UP ? -1 : dims_b_ncell_y;
-
-              const int ix_g = ix + ix_base; // dims_b_ncell_x * proc_x;
-              const int iy_g = iy + iy_base; // dims_b_ncell_y * proc_y;
-              const int iz_g = iz + stepinfoall.stepinfo[octant].block_z * dims_b_ncell_z;
-
-              if ((dir_y == DIR_UP) || (dir_y == DIR_DN)) {
-
-                /*--- Quantities_scalefactor_space_ inline ---*/
-                const int scalefactor_space
-                  = Quantities_scalefactor_space_acceldir(ix_g, iy_g, iz_g);
-
-                /*--- ref_facexz inline ---*/
-                facexz[FACEXZ_ADDR(dims_b_ncell_x, dims_b_ncell_z)]
-                  /*--- Quantities_init_face routine ---*/
-                  = Quantities_init_face_acceldir(ia, ie, iu, scalefactor_space, octant);
-              } /*---if---*/
-            } /*---for---*/
-#ifdef DEBUG
-      #pragma omp target update from (facexz[0:facexz_size])
-      for (int i = 0; i < facexz_size; i++)
-        printf("facexz: %d %f\n", i, facexz[i]);
-#endif
-
-      #pragma omp target teams distribute parallel for collapse(3) 
-      for( int octant=0; octant<NOCTANT; ++octant )
-      for( int iz=0; iz<dims_b_ncell_z; ++iz )
-      for( int iy=0; iy<dims_b_ncell_y; ++iy )
-        for(int ie=0; ie<dims_b_ne; ++ie )
-          for(int iu=0; iu<NU; ++iu )
-            for(int ia=0; ia<dims_b_na; ++ia )
-            {
-
-              const int dir_x = Dir_x( octant );
-              const int ix = dir_x == DIR_UP ? -1 : dims_b_ncell_x;
-
-              const int ix_g = ix + ix_base; // dims_b_ncell_x * proc_x;
-              const int iy_g = iy + iy_base; // dims_b_ncell_y * proc_y;
-              const int iz_g = iz + stepinfoall.stepinfo[octant].block_z * dims_b_ncell_z;
-
-              if ((dir_x == DIR_UP) || (dir_x == DIR_DN)) {
-
-                /*--- Quantities_scalefactor_space_ inline ---*/
-                const int scalefactor_space
-                  = Quantities_scalefactor_space_acceldir(ix_g, iy_g, iz_g);
-
-                /*--- ref_faceyz inline ---*/
-                faceyz[FACEYZ_ADDR(dims_b_ncell_y, dims_b_ncell_z)]
-                  /*--- Quantities_init_face routine ---*/
-                  = Quantities_init_face_acceldir(ia, ie, iu, scalefactor_space, octant);
-              } /*---if---*/
-            } /*---for---*/
-
-#ifdef DEBUG
-      #pragma omp target update from (faceyz[0:faceyz_size])
-      for (int i = 0; i < faceyz_size; i++)
-        printf("faceyz: %d %f\n", i, faceyz[i]);
-#endif
-
-      #pragma omp target teams distribute parallel for collapse(2)
-      for( int ie=0; ie<dims_b_ne; ++ie )
-      for( int octant=0; octant<NOCTANT; ++octant )
-        for ( int wavefront = 0; wavefront < num_wavefronts; wavefront++ )
+    // measure host and device execution time
+    std::chrono::steady_clock::time_point kstart, kend;
+  
+    auto t1 = std::chrono::steady_clock::now();
+  
+    for(int iteration=0; iteration<niterations; ++iteration )
+    {
+      // compute the value of next step
+      const int nstep = StepScheduler_nstep( &(sweeper.stepscheduler) );
+  #ifdef DEBUG
+      printf("iteration %d next step = %d\n", iteration, nstep);
+  #endif
+  
+      for (int step = 0; step < nstep; ++step) {
+  
+        Dimensions dims = sweeper.dims;
+        Dimensions dims_b = sweeper.dims_b;
+        int dims_b_ncell_x = dims_b.ncell_x;
+        int dims_b_ncell_y = dims_b.ncell_y;
+        int dims_b_ncell_z = dims_b.ncell_z;
+        int dims_ncell_z = dims.ncell_z;
+        int dims_b_ne = dims_b.ne;
+        int dims_b_na = dims_b.na;
+        //int dims_b_nm = dims_b.nm;
+  
+        //int v_size = dims.ncell_x * dims.ncell_y * dims.ncell_z * dims.ne * dims.nm * NU;
+        //int a_from_m_size = sizeof(P) * dims_b.nm * dims_b.na * NOCTANT;
+        //int m_from_a_size = sizeof(P) * dims_b.nm * dims_b.na * NOCTANT;
+        //int vslocal_size = sizeof(P) * dims_b.na * NU * dims_b.ne * NOCTANT * dims_b.ncell_x * dims_b.ncell_y;
+  
+        int v_b_size = dims_b.ncell_x * dims_b.ncell_y * dims_b.ncell_z * dims_b.ne * dims_b.nm * NU;
+  
+        StepInfoAll stepinfoall;  /*---But only use noctant_per_block values---*/
+  
+        for(int octant_in_block=0; octant_in_block<noctant_per_block; ++octant_in_block )
         {
-          for( int iywav=0; iywav<dims_b_ncell_y; ++iywav )
-            for( int ixwav=0; ixwav<dims_b_ncell_x; ++ixwav )
-            {
-
-              if (stepinfoall.stepinfo[octant].is_active) {
-
-                /*---Decode octant directions from octant number---*/
-
-                const int dir_x = Dir_x( octant );
+          stepinfoall.stepinfo[octant_in_block] = StepScheduler_stepinfo(
+              &(sweeper.stepscheduler), step, octant_in_block, 
+              0, //proc_x, 
+              0  //proc_y 
+              );
+        }
+  
+        const int ix_base = 0;
+        const int iy_base = 0;
+  
+        const int num_wavefronts = dims_b_ncell_z + dims_b_ncell_y + dims_b_ncell_x - 2;
+  
+        const int is_first_step = 0 == step;
+        const int is_last_step = nstep - 1 == step;
+  
+        if (is_first_step) {
+           kstart = std::chrono::steady_clock::now();
+  
+           #pragma omp target teams distribute parallel for
+           for (int i = 0; i < v_size; i++) vo[i] = 0;
+  
+           #pragma omp target teams distribute parallel for collapse(3)
+           for( int octant=0; octant<NOCTANT; ++octant )
+           for( int iy=0; iy<dims_b_ncell_y; ++iy )
+           for( int ix=0; ix<dims_b_ncell_x; ++ix )
+             for(int ie=0; ie<dims_b_ne; ++ie )
+               for(int iu=0; iu<NU; ++iu )
+                 for(int ia=0; ia<dims_b_na; ++ia )
+                 {
+                   const int dir_z = Dir_z( octant );
+                   const int iz = dir_z == DIR_UP ? -1 : dims_b_ncell_z;
+  
+                   const int ix_g = ix + ix_base; // dims_b_ncell_x * proc_x;
+                   const int iy_g = iy + iy_base; // dims_b_ncell_y * proc_y;
+                   const int iz_g = iz + (dir_z == DIR_UP ? 0 : dims_ncell_z - dims_b_ncell_z);
+                   //const int iz_g = iz + stepinfoall.stepinfo[octant].block_z * dims_b_ncell_z;
+  
+                   /*--- Quantities_scalefactor_space_ inline ---*/
+                   const int scalefactor_space
+                     = Quantities_scalefactor_space_acceldir(ix_g, iy_g, iz_g);
+  
+                   /*--- ref_facexy inline ---*/
+                   facexy[FACEXY_ADDR(dims_b_ncell_x, dims_b_ncell_y)]
+                     /*--- Quantities_init_face routine ---*/
+                     = Quantities_init_face_acceldir(ia, ie, iu, scalefactor_space, octant);
+                 } /*---for---*/
+  
+  #ifdef DEBUG
+           #pragma omp target update from (facexy[0:facexy_size])
+           for (int i = 0; i < facexy_size; i++)
+             printf("facexy: %d %f\n", i, facexy[i]);
+  #endif
+        }
+  
+        #pragma omp target teams distribute parallel for collapse(3)
+        for( int octant=0; octant<NOCTANT; ++octant )
+        for( int iz=0; iz<dims_b_ncell_z; ++iz )
+        for( int ix=0; ix<dims_b_ncell_x; ++ix )
+          for(int ie=0; ie<dims_b_ne; ++ie )
+            for(int iu=0; iu<NU; ++iu )
+              for(int ia=0; ia<dims_b_na; ++ia )
+              {
                 const int dir_y = Dir_y( octant );
-                const int dir_z = Dir_z( octant );
-
-                const int octant_in_block = octant;
-
-                const int ix = dir_x==DIR_UP ? ixwav : dims_b_ncell_x - 1 - ixwav;
-                const int iy = dir_y==DIR_UP ? iywav : dims_b_ncell_y - 1 - iywav;
-                const int izwav = wavefront - ixwav - iywav;
-                const int iz = dir_z==DIR_UP ? izwav : (dims_b_ncell_z-1) - izwav;
-
+                const int iy = dir_y == DIR_UP ? -1 : dims_b_ncell_y;
+  
                 const int ix_g = ix + ix_base; // dims_b_ncell_x * proc_x;
                 const int iy_g = iy + iy_base; // dims_b_ncell_y * proc_y;
                 const int iz_g = iz + stepinfoall.stepinfo[octant].block_z * dims_b_ncell_z;
+  
+                if ((dir_y == DIR_UP) || (dir_y == DIR_DN)) {
+  
+                  /*--- Quantities_scalefactor_space_ inline ---*/
+                  const int scalefactor_space
+                    = Quantities_scalefactor_space_acceldir(ix_g, iy_g, iz_g);
+  
+                  /*--- ref_facexz inline ---*/
+                  facexz[FACEXZ_ADDR(dims_b_ncell_x, dims_b_ncell_z)]
+                    /*--- Quantities_init_face routine ---*/
+                    = Quantities_init_face_acceldir(ia, ie, iu, scalefactor_space, octant);
+                } /*---if---*/
+              } /*---for---*/
+  #ifdef DEBUG
+        #pragma omp target update from (facexz[0:facexz_size])
+        for (int i = 0; i < facexz_size; i++)
+          printf("facexz: %d %f\n", i, facexz[i]);
+  #endif
+  
+        #pragma omp target teams distribute parallel for collapse(3) 
+        for( int octant=0; octant<NOCTANT; ++octant )
+        for( int iz=0; iz<dims_b_ncell_z; ++iz )
+        for( int iy=0; iy<dims_b_ncell_y; ++iy )
+          for(int ie=0; ie<dims_b_ne; ++ie )
+            for(int iu=0; iu<NU; ++iu )
+              for(int ia=0; ia<dims_b_na; ++ia )
+              {
+  
+                const int dir_x = Dir_x( octant );
+                const int ix = dir_x == DIR_UP ? -1 : dims_b_ncell_x;
+  
+                const int ix_g = ix + ix_base; // dims_b_ncell_x * proc_x;
+                const int iy_g = iy + iy_base; // dims_b_ncell_y * proc_y;
+                const int iz_g = iz + stepinfoall.stepinfo[octant].block_z * dims_b_ncell_z;
+  
+                if ((dir_x == DIR_UP) || (dir_x == DIR_DN)) {
+  
+                  /*--- Quantities_scalefactor_space_ inline ---*/
+                  const int scalefactor_space
+                    = Quantities_scalefactor_space_acceldir(ix_g, iy_g, iz_g);
+  
+                  /*--- ref_faceyz inline ---*/
+                  faceyz[FACEYZ_ADDR(dims_b_ncell_y, dims_b_ncell_z)]
+                    /*--- Quantities_init_face routine ---*/
+                    = Quantities_init_face_acceldir(ia, ie, iu, scalefactor_space, octant);
+                } /*---if---*/
+              } /*---for---*/
+  
+  #ifdef DEBUG
+        #pragma omp target update from (faceyz[0:faceyz_size])
+        for (int i = 0; i < faceyz_size; i++)
+          printf("faceyz: %d %f\n", i, faceyz[i]);
+  #endif
+  
+        #pragma omp target teams distribute parallel for collapse(2)
+        for( int ie=0; ie<dims_b_ne; ++ie )
+        for( int octant=0; octant<NOCTANT; ++octant )
+          for ( int wavefront = 0; wavefront < num_wavefronts; wavefront++ )
+          {
+            for( int iywav=0; iywav<dims_b_ncell_y; ++iywav )
+              for( int ixwav=0; ixwav<dims_b_ncell_x; ++ixwav )
+              {
+  
+                if (stepinfoall.stepinfo[octant].is_active) {
+  
+                  /*---Decode octant directions from octant number---*/
+  
+                  const int dir_x = Dir_x( octant );
+                  const int dir_y = Dir_y( octant );
+                  const int dir_z = Dir_z( octant );
+  
+                  const int octant_in_block = octant;
+  
+                  const int ix = dir_x==DIR_UP ? ixwav : dims_b_ncell_x - 1 - ixwav;
+                  const int iy = dir_y==DIR_UP ? iywav : dims_b_ncell_y - 1 - iywav;
+                  const int izwav = wavefront - ixwav - iywav;
+                  const int iz = dir_z==DIR_UP ? izwav : (dims_b_ncell_z-1) - izwav;
+  
+                  const int ix_g = ix + ix_base; // dims_b_ncell_x * proc_x;
+                  const int iy_g = iy + iy_base; // dims_b_ncell_y * proc_y;
+                  const int iz_g = iz + stepinfoall.stepinfo[octant].block_z * dims_b_ncell_z;
+  
+                  const int v_offset = stepinfoall.stepinfo[octant].block_z * v_b_size;
+  
+                  /*--- In-gridcell computations ---*/
+                  Sweeper_sweep_cell_acceldir( dims_b, wavefront, octant, ix, iy,
+                      ix_g, iy_g, iz_g,
+                      dir_x, dir_y, dir_z,
+                      facexy, facexz, faceyz,
+                      a_from_m, m_from_a,
+                      &(vi[v_offset]), &(vo[v_offset]), vslocal,
+                      octant_in_block, noctant_per_block, ie );
+              } /*---if---*/
+  
+            } /*---octant/ix/iy---*/
+  
+        } /*--- wavefront ---*/
+  
+        if (is_last_step) { 
+  
+          kend = std::chrono::steady_clock::now();
+          ktime += std::chrono::duration_cast<std::chrono::nanoseconds>(kend - kstart).count();
+         
+          #pragma omp target update from (vo[0:v_size])
+  #ifdef DEBUG
+          for (int i = 0; i < v_size; i++) printf("vo %d %f\n", i, vo[i]);
+  #endif
+        }
+      } // step
+  
+      P* tmp = vo;
+      vo = vi;
+      vi = tmp;
+    }
+  
+    auto t2 = std::chrono::steady_clock::now();
+    auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count();
+  
+    // Verification (input and output vectors are equal) 
+    P normsq = (P)0;
+    P normsqdiff = (P)0;
+    for (size_t i = 0; i < Dimensions_size_state( dims, NU ); i++) {
+      normsq += vo[i] * vo[i];
+      normsqdiff += (vi[i] - vo[i]) * (vi[i] - vo[i]);
+    }
+    double flops = niterations *
+      ( Dimensions_size_state( dims, NU ) * NOCTANT * 2. * dims.na
+        + Dimensions_size_state_angles( dims, NU )
+        * Quantities_flops_per_solve( dims )
+        + Dimensions_size_state( dims, NU ) * NOCTANT * 2. * dims.na );
+  
+    double floprate_h = (time <= 0) ?  0 : flops / time;
+    double floprate_d = (ktime <= 0) ?  0 : flops / ktime;
 
-                const int v_offset = stepinfoall.stepinfo[octant].block_z * v_b_size;
-
-                /*--- In-gridcell computations ---*/
-                Sweeper_sweep_cell_acceldir( dims_b, wavefront, octant, ix, iy,
-                    ix_g, iy_g, iz_g,
-                    dir_x, dir_y, dir_z,
-                    facexy, facexz, faceyz,
-                    a_from_m, m_from_a,
-                    &(vi[v_offset]), &(vo[v_offset]), vslocal,
-                    octant_in_block, noctant_per_block, ie );
-            } /*---if---*/
-
-          } /*---octant/ix/iy---*/
-
-      } /*--- wavefront ---*/
-
-      if (is_last_step) { 
-
-        k_end = get_time();
-        ktime += k_end - k_start;
-       
-        #pragma omp target update from (vo[0:v_size])
-#ifdef DEBUG
-        for (int i = 0; i < v_size; i++) printf("vo %d %f\n", i, vo[i]);
-#endif
-      }
-    } // step
-
-    P* tmp = vo;
-    vo = vi;
-    vi = tmp;
+    printf( "Normsq result: %.8e  diff: %.3e  verify: %s  host time: %.3f (s) kernel time: %.3f (s)\n",
+            normsq,
+            normsqdiff,
+            normsqdiff== (P)0 ? "PASS" : "FAIL",
+            time * 1e-9, ktime * 1e-9);
+  
+    printf( "GF/s (host): %.3f\nGF/s (device): %.3f\n", floprate_h, floprate_d );
+  
+    /*---Deallocations---*/
+  
+    Arguments_destroy( &args );
   }
-
-  double t2 = get_time();
-  time = t2 - t1;
-}
-
-  // Verification (input and output vectors are equal) 
-  P normsq = (P)0;
-  P normsqdiff = (P)0;
-  for (size_t i = 0; i < Dimensions_size_state( dims, NU ); i++) {
-    normsq += vo[i] * vo[i];
-    normsqdiff += (vi[i] - vo[i]) * (vi[i] - vo[i]);
-  }
-  double flops = niterations *
-    ( Dimensions_size_state( dims, NU ) * NOCTANT * 2. * dims.na
-      + Dimensions_size_state_angles( dims, NU )
-      * Quantities_flops_per_solve( dims )
-      + Dimensions_size_state( dims, NU ) * NOCTANT * 2. * dims.na );
-
-  double floprate_h = (time <= 0) ?  0 : flops / (time * 1e-6) / 1e9;
-  double floprate_d = (ktime <= 0) ?  0 : flops / (ktime * 1e-6) / 1e9;
-
-  printf( "Normsq result: %.8e  diff: %.3e  verify: %s  host time: %.3f (s) kernel time: %.3f (s)\n",
-          normsq,
-          normsqdiff,
-          normsqdiff== (P)0 ? "PASS" : "FAIL",
-          time * 1e-6, ktime * 1e-6);
-
-  printf( "GF/s (host): %.3f\nGF/s (device): %.3f\n", floprate_h, floprate_d );
-
-  /*---Deallocations---*/
-
-  Arguments_destroy( &args );
 
   free(vi);
   free(vo);

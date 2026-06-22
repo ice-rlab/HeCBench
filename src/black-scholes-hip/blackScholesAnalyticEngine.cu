@@ -4,10 +4,8 @@
 
 #include <stdio.h>
 #include <math.h>
-#include <sys/time.h>
-#include <time.h>
+#include <chrono>
 #include <hip/hip_runtime.h>
-
 //needed for optionInputStruct
 #include "blackScholesAnalyticEngineStructs.cuh"
 
@@ -224,10 +222,8 @@ void runBlackScholesAnalyticEngine(const int repeat)
     float* outputVals = (float*)malloc(numVals * sizeof(float));
 
     printf("Number of options: %d\n\n", numVals);
-    long seconds, useconds, kseconds, kuseconds;
-    float mtimeCpu, mtimeGpu, ktimeGpu;
-    struct timeval start;
-    gettimeofday(&start, NULL);
+
+    auto start = std::chrono::steady_clock::now();
 
     //declare the data on the GPU
     optionInputStruct* optionsGpu;
@@ -241,22 +237,18 @@ void runBlackScholesAnalyticEngine(const int repeat)
     hipMemcpy(optionsGpu, values, numVals * sizeof(optionInputStruct), hipMemcpyHostToDevice);
 
     // setup execution parameters
-    dim3  grid( (numVals + THREAD_BLOCK_SIZE - 1)/THREAD_BLOCK_SIZE, 1, 1);
+    dim3  grid((numVals + THREAD_BLOCK_SIZE - 1)/THREAD_BLOCK_SIZE, 1, 1);
     dim3  threads( THREAD_BLOCK_SIZE, 1, 1);
 
-    struct timeval kstart;
-    gettimeofday(&kstart, NULL);
+    hipDeviceSynchronize();
+    auto kstart = std::chrono::steady_clock::now();
 
     for (int i = 0; i < repeat; i++)
-      hipLaunchKernelGGL(getOutValOption, dim3(dim3(grid)), dim3(dim3(threads) ),
-                         0, 0, optionsGpu, outputValsGpu, numVals);
+      getOutValOption <<< dim3(grid), dim3(threads) >>> (optionsGpu, outputValsGpu, numVals);
 
     hipDeviceSynchronize();
-    struct timeval kend;
-    gettimeofday(&kend, NULL);
-    kseconds  = kend.tv_sec  - kstart.tv_sec;
-    kuseconds = kend.tv_usec - kstart.tv_usec;
-    ktimeGpu = ((kseconds) * 1000 + ((float)kuseconds)/1000.0) + 0.5f;
+    auto kend = std::chrono::steady_clock::now();
+    double ktimeGpu = std::chrono::duration_cast<std::chrono::nanoseconds>(kend - kstart).count();
 
     //copy the resulting option values back to the CPU
     hipMemcpy(outputVals, outputValsGpu, numVals * sizeof(float), hipMemcpyDeviceToHost);
@@ -264,17 +256,15 @@ void runBlackScholesAnalyticEngine(const int repeat)
     hipFree(optionsGpu);
     hipFree(outputValsGpu);
 
-    struct timeval end;
-    gettimeofday(&end, NULL);
-    seconds  = end.tv_sec  - start.tv_sec;
-    useconds = end.tv_usec - start.tv_usec;
-    mtimeGpu = ((seconds) * 1000 + ((float)useconds)/1000.0) + 0.5f;
+    auto end = std::chrono::steady_clock::now();
+    double mtimeGpu = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
 
     printf("Run on GPU\n");
-    printf("Average kernel execution time on GPU: %f (ms)\n", ktimeGpu / repeat);
+    double avg_ktimeGpu = ktimeGpu * 1e-6 / repeat;
+    printf("Average kernel execution time on GPU: %f (ms)\n", avg_ktimeGpu);
 
-    mtimeGpu -= ktimeGpu + ktimeGpu / repeat;
-    printf("Processing time on GPU: %f (ms)\n", mtimeGpu);
+    mtimeGpu = (mtimeGpu - ktimeGpu) * 1e-6 + avg_ktimeGpu;
+    printf("Processing time using GPU %f (ms)\n", mtimeGpu);
 
     float totResult = 0.0f;
     for (int i=0; i<numVals; i++)
@@ -286,16 +276,14 @@ void runBlackScholesAnalyticEngine(const int repeat)
     printf("Output price at index %d on GPU: %f\n\n", numVals/2, outputVals[numVals/2]);
 
     //run on CPU
-    gettimeofday(&start, NULL);
+    start = std::chrono::steady_clock::now();
     for (int numOption=0; numOption < numVals; numOption++)
     {
-      getOutValOptionCpu(values, outputVals, numOption, numVals);  
+      getOutValOptionCpu(values, outputVals, numOption, numVals);
     }
-    gettimeofday(&end, NULL);
-    seconds  = end.tv_sec  - start.tv_sec;
-    useconds = end.tv_usec - start.tv_usec;
-
-    mtimeCpu = ((seconds) * 1000 + ((float)useconds)/1000.0) + 0.5f;
+    end = std::chrono::steady_clock::now();
+    double mtimeCpu = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    mtimeCpu = mtimeCpu * 1e-6;
 
     printf("Run on CPU\n");
     printf("Processing time on CPU: %f (ms)\n", mtimeCpu);
@@ -316,7 +304,7 @@ void runBlackScholesAnalyticEngine(const int repeat)
   }
 }
 
-int main( int argc, char** argv) 
+int main( int argc, char** argv)
 {
   if (argc != 2) {
     printf("Usage: %s <repeat>\n", argv[0]);

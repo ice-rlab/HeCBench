@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/time.h>
+#include <chrono>
 
 size_t align_value(size_t valueToAlign, size_t alignMask);
 
@@ -14,8 +14,6 @@ typedef void (*coding_func)(int k, int index,
     int threadDimX,int blockDimX,
     int workSizePerGridInLong);
 
-double elapsed_time_in_ms(struct timeval startTime, struct timeval endTime);
- 
 
 #define talloc(type, num) (type *)malloc(sizeof(type) * (num))
 

@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
 #include <math.h>
+#include <chrono>
 #include <cuda.h>
 #include "ecdh.h"
 
@@ -20,9 +20,6 @@ int main(int argc, char **argv)
   const int num_pk = atoi(argv[1]); 
   const int repeat = atoi(argv[2]); 
 
-  // timing fast and slow versions for making public key
-  struct timeval start_fast, end_fast, start_slow, end_slow;
-
   const int pk_x_size = num_pk * sizeof(int);
   const int pk_y_size = num_pk * sizeof(int);
 
@@ -37,32 +34,28 @@ int main(int argc, char **argv)
   
   dim3 grids = (num_pk + 255) / 256;
 
-  gettimeofday(&start_slow,NULL);
+  auto start = std::chrono::steady_clock::now();
 
   for (int i = 0; i < repeat; i++)
     k_slow <<<grids, 256>>> (18, P_x, P_y, d_pk_x, d_pk_y, MODULUS, A, num_pk);  
 
   cudaDeviceSynchronize();
-  gettimeofday(&end_slow,NULL);
-  double elapsed_slow = (((end_slow.tv_sec*1000000.0 + end_slow.tv_usec) -
-                        (start_slow.tv_sec*1000000.0 + start_slow.tv_usec)) / 1000000.00);
-
-  printf("Average time (slow kernel): %f s\n", elapsed_slow / repeat);
+  auto end = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+  printf("Average time (slow kernel): %f s\n", time * 1e-9 / repeat);
 
   cudaMemcpy(pk_slow_x, d_pk_x, pk_x_size, cudaMemcpyDeviceToHost);
   cudaMemcpy(pk_slow_y, d_pk_y, pk_y_size, cudaMemcpyDeviceToHost);
 
-  gettimeofday(&start_fast,NULL);
+  start = std::chrono::steady_clock::now();
 
   for (int i = 0; i < repeat; i++)
     k_fast <<<grids, 256>>> (18, P_x, P_y, d_pk_x, d_pk_y, MODULUS, A, num_pk);  
 
   cudaDeviceSynchronize();
-  gettimeofday(&end_fast,NULL);
-  double elapsed_fast = (((end_fast.tv_sec*1000000.0 + end_fast.tv_usec) -
-                        (start_fast.tv_sec*1000000.0 + start_fast.tv_usec)) / 1000000.00);
-
-  printf("Average time (fast kernel): %f s\n", elapsed_fast / repeat);
+  end = std::chrono::steady_clock::now();
+  time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+  printf("Average time (fast kernel): %f s\n", time * 1e-9 / repeat);
 
   cudaMemcpy(pk_fast_x, d_pk_x, pk_x_size, cudaMemcpyDeviceToHost);
   cudaMemcpy(pk_fast_y, d_pk_y, pk_y_size, cudaMemcpyDeviceToHost);

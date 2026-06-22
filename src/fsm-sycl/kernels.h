@@ -8,24 +8,13 @@ static inline void atomicAdd(int& val, const int delta)
   ref.fetch_add(delta);
 }
 
-static inline void atomicMax(int& val, const int delta)
+template <typename T>
+static inline void atomicMax(T& val, const T delta)
 {
-  sycl::atomic_ref<int,
+  sycl::atomic_ref<T,
     sycl::memory_order::relaxed, sycl::memory_scope::device, 
     sycl::access::address_space::global_space> ref(val);
   ref.fetch_max(delta);
-}
-
-inline void atomicCAS(unsigned long long *val,
-                     unsigned long long expected,
-                     unsigned long long desired) 
-{
-  auto expected_value = expected;
-  auto atm = sycl::atomic_ref<unsigned long long,
-    sycl::memory_order::relaxed,
-    sycl::memory_scope::device,
-    sycl::access::address_space::global_space>(*val);
-  atm.compare_exchange_strong(expected_value, desired);
 }
 
 unsigned int LCG_random(unsigned int * seed) {
@@ -57,7 +46,7 @@ void FSMKernel(
   unsigned char *__restrict next)
 {
   int i, d, pc, s, bit, id, misses, rnd;
-  unsigned long long myresult, current;
+  unsigned long long myresult;
   unsigned char *fsm, state[TABSIZE];
 
   int lid = item.get_local_id(0);
@@ -134,13 +123,15 @@ void FSMKernel(
       // mutate best FSM by flipping random bits with 1/4th probability
       for (i = 0; i < FSMSIZE * 2; i++) {
         rnd = LCG_random(rndstate+id) & LCG_random(rndstate+id);
-        fsm[i] = (next[i + sbest[bid] * FSMSIZE * 2] ^ rnd) & (FSMSIZE - 1);
+        if (lid != sbest[bid])
+          fsm[i] = (next[i + sbest[bid] * FSMSIZE * 2] ^ rnd) & (FSMSIZE - 1);
       }
     } else {
       // crossover best FSM with random FSMs using 3/4 of bits from best FSM
       for (i = 0; i < FSMSIZE * 2; i++) {
         rnd = LCG_random(rndstate+id) & LCG_random(rndstate+id);
-        fsm[i] = (fsm[i] & rnd) | (next[i + sbest[bid] * FSMSIZE * 2] & ~rnd);
+        if (lid != sbest[bid])
+          fsm[i] = (fsm[i] & rnd) | (next[i + sbest[bid] * FSMSIZE * 2] & ~rnd);
       }
     }
   } while (same[bid] < CUTOFF);  // end of loop over generations
@@ -150,11 +141,9 @@ void FSMKernel(
     id = bid;
     myresult = length - misses;
     myresult = (myresult << 32) + id;
-    current = *((unsigned long long *)best);
-    while (myresult > current) {
-      atomicCAS((unsigned long long *)best, current, myresult);
-      current = *((unsigned long long *)best);
-    }
+
+    atomicMax(*(unsigned long long *)best, myresult);
+
     for (i = 0; i < FSMSIZE * 2; i++) {
       bfsm[id * (FSMSIZE*2) + i] = fsm[i];
     }

@@ -3,14 +3,12 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/time.h>
+#include <chrono>
 
 size_t align_value(size_t valueToAlign, size_t alignMask);
 
 void generateRandomValue(char *data, size_t size);
 
-double elapsed_time_in_ms(struct timeval startTime, struct timeval endTime);
- 
 
 #define talloc(type, num) (type *)malloc(sizeof(type) * (num))
 

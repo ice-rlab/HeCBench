@@ -135,8 +135,7 @@ int main(int argc, const char * argv[]) {
     printf("#blocks: %zu  blockSize: %d\n", blockNum, threadNum);
 #endif
 
-    struct timeval startEncodeTime, endEncodeTime;
-    gettimeofday(&startEncodeTime, NULL);
+    auto start = std::chrono::steady_clock::now();
 
     for (int i = 0; i < taskNum; ++i) {
       int count = (i == taskNum-1) ? bufSizeForLastTask : bufSizePerTask;
@@ -159,12 +158,12 @@ int main(int argc, const char * argv[]) {
       // TODO
       //#pragma omp target update from (code[i*m*bufSizePerTask : i*m*bufSizePerTask + m*count])
     }
-    gettimeofday(&endEncodeTime, NULL);
-    double etime = elapsed_time_in_ms(startEncodeTime, endEncodeTime);
+    auto end = std::chrono::steady_clock::now();
+    auto etime = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
 #ifdef DUMP
-    printf("Encoding time over %d tasks: %lf (ms)\n", taskNum, etime);
+    printf("Encoding time over %d tasks: %lf (ms)\n", taskNum, etime * 1e-6);
 #endif
-    encode_time += etime;
+    encode_time += etime * 1e-6;
 }
 
 #ifdef DUMP

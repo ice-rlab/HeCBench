@@ -16,6 +16,8 @@ HIP       = no
 HIP_ARCH  = gfx908
 #GCC_TOOLCHAIN = "/auto/software/gcc/x86_64/gcc-9.1.0/"
 
+program   = main
+
 #===============================================================================
 # Program name & source code list
 #===============================================================================
@@ -64,16 +66,14 @@ endif
 # Targets to Build
 #===============================================================================
 
-./srad:	./main.o \
+$(program):	./main.o \
 	./util/graphics/graphics.o \
-	./util/graphics/resize.o \
-	./util/timer/timer.o
+	./util/graphics/resize.o
 	$(CC) $(CFLAGS)	./main.o \
 		./util/graphics/graphics.o \
 		./util/graphics/resize.o \
-		./util/timer/timer.o \
 		-lm \
-		$(LDFLAGS) -o srad
+		$(LDFLAGS) -o $(program)
 
 ./main.o:./main.cpp ./main.h \
 	kernel_compress.sycl \
@@ -99,14 +99,8 @@ endif
 		-o ./util/graphics/resize.o \
 		-O3
 
-./util/timer/timer.o:./util/timer/timer.h ./util/timer/timer.c
-	$(CC)	./util/timer/timer.c \
-		-c \
-		-o ./util/timer/timer.o \
-		-O3
-
 clean:
-	rm -f ./*.o srad *.pgm ./util/graphics/*.o ./util/timer/*.o
+	rm -f ./*.o $(program) *.pgm ./util/graphics/*.o
 
-run: srad
-	$(LAUNCHER) ./srad 1000 0.5 502 458
+run: $(program)
+	$(LAUNCHER) ./$(program) 1000 0.5 502 458

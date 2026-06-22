@@ -1,9 +1,9 @@
 #include <stdio.h>
-#include <sys/time.h>
+#include <chrono>
 #include <sycl/sycl.hpp>
 #include "utils.h"
 
-template <int WarpsPerBlock, int PinLimit>
+template <int WS, int WarpsPerBlock, int PinLimit>
 static 
 void buildMST(const ID num, 
               const ctype* const __restrict x,
@@ -14,17 +14,11 @@ void buildMST(const ID num,
 {
   auto g = item.get_group();
 
-  sycl::multi_ptr<ID[WarpsPerBlock][PinLimit], sycl::access::address_space::local_space> 
-    t1 = sycl::ext::oneapi::group_local_memory_for_overwrite<ID[WarpsPerBlock][PinLimit]>(g);
-  ID (*source)[PinLimit] = *t1;
+  ID (*source)[PinLimit] = *sycl::ext::oneapi::group_local_memory_for_overwrite<ID[WarpsPerBlock][PinLimit]>(g);
 
-  sycl::multi_ptr<ID[WarpsPerBlock][PinLimit], sycl::access::address_space::local_space> 
-    t2 = sycl::ext::oneapi::group_local_memory_for_overwrite<ID[WarpsPerBlock][PinLimit]>(g);
-  ID (*destin)[PinLimit] = *t2;
+  ID (*destin)[PinLimit] = *sycl::ext::oneapi::group_local_memory_for_overwrite<ID[WarpsPerBlock][PinLimit]>(g);
 
-  sycl::multi_ptr<ctype[WarpsPerBlock], sycl::access::address_space::local_space>
-    t3 = sycl::ext::oneapi::group_local_memory_for_overwrite<ctype[WarpsPerBlock]>(g);
-  ctype *mindj = *t3;
+  ctype *mindj = *sycl::ext::oneapi::group_local_memory_for_overwrite<ctype[WarpsPerBlock]>(g);
 
   const int lane = item.get_local_id(0) % WS;
   const int warp = item.get_local_id(0) / WS;
@@ -39,7 +33,6 @@ void buildMST(const ID num,
   auto sg = item.get_sub_group();
 
   for (ID cnt = 0; cnt < num - 1; cnt++) {
-    sycl::group_barrier(sg);
     if (lane == 0) mindj[warp] = INT_MAX;
 
     // update distances
@@ -67,6 +60,10 @@ void buildMST(const ID num,
     const ID j = mindj[warp] % (MaxPins * 2);
     src = destin[warp][j];
     numItems--;
+
+    // https://github.com/ORNL/HeCBench/issues/265
+    sycl::group_barrier(sg);
+
     if (lane == 0) {
       edges[cnt].src = source[warp][j];
       edges[cnt].dst = src;
@@ -77,7 +74,7 @@ void buildMST(const ID num,
   }
 }
 
-template <int WarpsPerBlock, int PinLimit>
+template <int WS, int WarpsPerBlock, int PinLimit>
 static 
 bool insertSteinerPoints(ID& num,
                          ctype* const __restrict x,
@@ -88,13 +85,9 @@ bool insertSteinerPoints(ID& num,
 {
   auto g = item.get_group();
 
-  sycl::multi_ptr<ID[WarpsPerBlock][PinLimit][8], sycl::access::address_space::local_space> 
-    t1 = sycl::ext::oneapi::group_local_memory_for_overwrite<ID[WarpsPerBlock][PinLimit][8]>(g);
-  ID (*adj)[PinLimit][8] = *t1;
+  ID (*adj)[PinLimit][8] = *sycl::ext::oneapi::group_local_memory_for_overwrite<ID[WarpsPerBlock][PinLimit][8]>(g);
 
-  sycl::multi_ptr<int[WarpsPerBlock][PinLimit], sycl::access::address_space::local_space> 
-    t2 = sycl::ext::oneapi::group_local_memory_for_overwrite<int[WarpsPerBlock][PinLimit]>(g);
-  int (*cnt)[PinLimit] = *t2;
+  int (*cnt)[PinLimit] = *sycl::ext::oneapi::group_local_memory_for_overwrite<int[WarpsPerBlock][PinLimit]>(g);
 
   const int lane = item.get_local_id(0) % WS;
   const int warp = item.get_local_id(0) / WS;
@@ -206,10 +199,10 @@ bool insertSteinerPoints(ID& num,
         }
       }
     }
-    const int bal = sycl::reduce_over_group(
-        sg, insert ? (0x1 << sg.get_local_linear_id()) : 0,
+    const unsigned long bal = sycl::reduce_over_group(
+        sg, insert ? (1ULL << sg.get_local_linear_id()) : 0,
         sycl::plus<>());
-    const int pos = sycl::popcount(bal & ~(-1 << lane)) + num;
+    const int pos = sycl::popcount(bal & ~(-1ULL << lane)) + num;
     if (insert) {
       x[pos] = stx;
       y[pos] = sty;
@@ -217,10 +210,13 @@ bool insertSteinerPoints(ID& num,
     num += sycl::popcount(bal);
   }
 
+  // https://github.com/ORNL/HeCBench/issues/265
+  sycl::group_barrier(sg);
+
   return sycl::any_of_group(sg, updated);
 }
 
-template <int WarpsPerBlock, int PinLimit>
+template <int WS, int WarpsPerBlock, int PinLimit>
 static 
 inline void processSmallNet(const int i,
                             const int* const __restrict idxin,
@@ -236,9 +232,7 @@ inline void processSmallNet(const int i,
 {
   auto g = item.get_group();
 
-  sycl::multi_ptr<ctype[WarpsPerBlock][PinLimit], sycl::access::address_space::local_space> 
-    t1 = sycl::ext::oneapi::group_local_memory_for_overwrite<ctype[WarpsPerBlock][PinLimit]>(g);
-  ctype (*dist)[PinLimit] = *t1;
+  ctype (*dist)[PinLimit] = *sycl::ext::oneapi::group_local_memory_for_overwrite<ctype[WarpsPerBlock][PinLimit]>(g);
 
   const int lane = item.get_local_id(0) % WS;
   const int warp = item.get_local_id(0) / WS;
@@ -276,9 +270,9 @@ inline void processSmallNet(const int i,
     // iterate until all Steiner points added
     ID cnt = num;
     do {
-      buildMST<WarpsPerBlock, PinLimit>(cnt, &xout[pout], &yout[pout],
+      buildMST<WS, WarpsPerBlock, PinLimit>(cnt, &xout[pout], &yout[pout],
                                         &edges[pout], dist[warp], item);
-    } while (insertSteinerPoints<WarpsPerBlock, PinLimit>(
+    } while (insertSteinerPoints<WS, WarpsPerBlock, PinLimit>(
         cnt, &xout[pout], &yout[pout], &edges[pout], dist[warp], item));
   } else {
     if (lane == 0) {
@@ -291,7 +285,7 @@ inline void processSmallNet(const int i,
   }
 }
 
-template <int WarpsPerBlock, int PinLimit>
+template <int WS, int WarpsPerBlock, int PinLimit>
 static 
 inline void processLargeNet(const int i,
                             const int* const __restrict idxin,
@@ -302,9 +296,7 @@ inline void processLargeNet(const int i,
 {
   auto g = item.get_group();
 
-  sycl::multi_ptr<ctype[WarpsPerBlock][PinLimit], sycl::access::address_space::local_space> 
-    t1 = sycl::ext::oneapi::group_local_memory_for_overwrite<ctype[WarpsPerBlock][PinLimit]>(g);
-  ctype (*dist)[PinLimit] = *t1;
+  ctype (*dist)[PinLimit] = *sycl::ext::oneapi::group_local_memory_for_overwrite<ctype[WarpsPerBlock][PinLimit]>(g);
 
   const int warp = item.get_local_id(0) / WS;
 
@@ -315,13 +307,13 @@ inline void processLargeNet(const int i,
   // iterate until all Steiner points added
   ID cnt = num;
   do {
-    buildMST<WarpsPerBlock, PinLimit>(cnt, &xout[pout], &yout[pout],
+    buildMST<WS, WarpsPerBlock, PinLimit>(cnt, &xout[pout], &yout[pout],
                                       &edges[pout], dist[warp], item);
-  } while (insertSteinerPoints<WarpsPerBlock, PinLimit>(
+  } while (insertSteinerPoints<WS, WarpsPerBlock, PinLimit>(
       cnt, &xout[pout], &yout[pout], &edges[pout], dist[warp], item));
 }
 
-template <int WarpsPerBlock, int PinLimit>
+template <int WS, int WarpsPerBlock, int PinLimit>
 static 
 void largeNetKernel(const int* const __restrict idxin,
                     const ctype* const __restrict xin,
@@ -351,7 +343,7 @@ void largeNetKernel(const int* const __restrict idxin,
     }
     i = sycl::select_from_group(sg, i, 0);
     if (i >= numnets) break;
-    processSmallNet<WarpsPerBlock, PinLimit>(
+    processSmallNet<WS, WarpsPerBlock, PinLimit>(
         i, idxin, xin, yin, idxout, xout, yout, edges, wl, item, wlsize);
   } while (true);
 
@@ -361,7 +353,7 @@ void largeNetKernel(const int* const __restrict idxin,
   }
 }
 
-template <int WarpsPerBlock, int PinLimit>
+template <int WS, int WarpsPerBlock, int PinLimit>
 static 
 void smallNetKernel(const int* const __restrict idxin,
                     ctype* __restrict xout,
@@ -388,7 +380,7 @@ void smallNetKernel(const int* const __restrict idxin,
 
     i = sycl::select_from_group(sg, i, 0);
     if (i >= *wlsize) break;
-    processLargeNet<WarpsPerBlock, PinLimit>(wl[i], idxin, xout, yout, edges, item);
+    processLargeNet<WS, WarpsPerBlock, PinLimit>(wl[i], idxin, xout, yout, edges, item);
   } while (true);
 }
 
@@ -403,9 +395,15 @@ static void computeRSMT(sycl::queue &q,
                         const int numnets)
 {
   // obtain GPU info
-  const int SMs = q.get_device().get_info<sycl::info::device::max_compute_units>();
+  auto dev = q.get_device();
+  auto sg_sizes = dev.get_info<sycl::info::device::sub_group_sizes>();
+  auto r = std::max_element(sg_sizes.begin(), sg_sizes.end());
+  int warpSize = *r;
+
+  //const int SMs = dev.get_info<sycl::info::device::max_compute_units>();
+  const int SMs = dev.get_info<sycl::ext::oneapi::info::device::num_compute_units>();
   const int blocks = SMs * 2;
-  printf("launching %d thread blocks with %d threads per block\n", blocks, 24 * WS);
+  printf("launching %d thread blocks with %d threads per block\n", blocks, 24 * warpSize);
 
   // allocate and initialize GPU memory
   int* d_idxin;  ctype* d_xin;  ctype* d_yin;
@@ -438,41 +436,62 @@ static void computeRSMT(sycl::queue &q,
   q.wait();
 
   // start time
-  timeval start, end;
-  gettimeofday(&start, NULL);
+  auto start = std::chrono::steady_clock::now();
 
   // process nets
   q.memset(d_xout, -1, 2 * size * sizeof(ctype));
   q.memset(d_yout, -1, 2 * size * sizeof(ctype));
   q.memset(d_edges, 0, 2 * size * sizeof(edge));
 
-  sycl::range<1> gws_l (24 * blocks * WS);
-  sycl::range<1> lws_l (24 * WS);
+  const int threadsPerBlock = 24 * 32;
 
-  q.submit([&](sycl::handler &cgh) {
-    cgh.parallel_for(sycl::nd_range<1>(gws_l, lws_l), [=](sycl::nd_item<1> item)
-       [[sycl::reqd_sub_group_size(32)]] {
-          largeNetKernel<24, 64>(
-              d_idxin, d_xin, d_yin, d_idxout, d_xout, d_yout, d_edges, numnets,
-              d_wl, item, d_currpos1, d_wlsize);
+  sycl::range<1> gws_l (blocks * 24 * 32);
+  sycl::range<1> lws_l (threadsPerBlock);
+
+  if (warpSize == 64) {
+    q.submit([&](sycl::handler &cgh) {
+      cgh.parallel_for(sycl::nd_range<1>(gws_l, lws_l), [=](sycl::nd_item<1> item) {
+        largeNetKernel<64, threadsPerBlock/64, 64>(
+            d_idxin, d_xin, d_yin, d_idxout, d_xout, d_yout, d_edges, numnets,
+            d_wl, item, d_currpos1, d_wlsize);
+      });
     });
-  });
-
-  sycl::range<1> gws_s (3 * blocks * WS);
-  sycl::range<1> lws_s (3 * WS);
-
-  q.submit([&](sycl::handler &cgh) {
-    cgh.parallel_for(sycl::nd_range<1>(gws_s, lws_s), [=](sycl::nd_item<1> item)
-      [[sycl::reqd_sub_group_size(32)]] {
-          smallNetKernel<3, 512>(d_idxin, d_xout, d_yout, d_edges, d_wl,
-                                 item, d_currpos2, d_wlsize);
+  }
+  else {
+    q.submit([&](sycl::handler &cgh) {
+      cgh.parallel_for(sycl::nd_range<1>(gws_l, lws_l), [=](sycl::nd_item<1> item) {
+        largeNetKernel<32, threadsPerBlock/32, 64>(
+            d_idxin, d_xin, d_yin, d_idxout, d_xout, d_yout, d_edges, numnets,
+            d_wl, item, d_currpos1, d_wlsize);
+      });
     });
-  });
+  }
+
+  sycl::range<1> gws_s (blocks * 3 * warpSize);
+  sycl::range<1> lws_s (3 * warpSize);
+
+  if (warpSize == 64) {
+    q.submit([&](sycl::handler &cgh) {
+      cgh.parallel_for(sycl::nd_range<1>(gws_s, lws_s), [=](sycl::nd_item<1> item) {
+        smallNetKernel<64, 3, 512>(d_idxin, d_xout, d_yout, d_edges, d_wl,
+                               item, d_currpos2, d_wlsize);
+      });
+    });
+  }
+  else {
+    q.submit([&](sycl::handler &cgh) {
+      cgh.parallel_for(sycl::nd_range<1>(gws_s, lws_s), [=](sycl::nd_item<1> item) {
+        smallNetKernel<32, 3, 512>(d_idxin, d_xout, d_yout, d_edges, d_wl,
+                               item, d_currpos2, d_wlsize);
+      });
+    });
+  }
 
   // end time
   q.wait();
-  gettimeofday(&end, NULL);
-  const double runtime = end.tv_sec - start.tv_sec + (end.tv_usec - start.tv_usec) / 1000000.0;
+  auto end = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+  const double runtime = time * 1e-9;
   printf("compute time: %.6f s\n", runtime);
   printf("throughput: %.f nets/sec\n", numnets / runtime);
 

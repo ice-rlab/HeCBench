@@ -455,13 +455,17 @@ set(HECBENCH_POC_BENCHMARKS
     # Final batch: remaining benchmarks
     addBiasQKV
     addBiasResidualLayerNorm
+    attentionMergeState
     attention-paged
     allreduce
     atomicAggregate
     atomicCAS
     atomicSystemWide
     attentionMultiHead
+    attentionMultiHeadKVCache
     axhelm
+    base64e
+    bgmv
     bh
     bicgstab
     bincount
@@ -523,6 +527,8 @@ set(HECBENCH_POC_BENCHMARKS
     halo-finder
     leukocyte
     miniFE
+    mergeVS
+    mlp
     pointerchase
     rmsnorm
     saxpy-ompt

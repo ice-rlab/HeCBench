@@ -35,9 +35,9 @@ https://cs.txstate.edu/~burtscher/research/ECL-APSP/.
 */
 
 
+#include <chrono>
 #include <cstdio>
 #include <limits>
-#include <sys/time.h>
 #include <cuda.h>
 #include "graph.h"
 
@@ -394,6 +394,8 @@ void FWrem_64(
     idx2_b += tile;
   }
 
+  __syncthreads();
+
   if ((y == z) && (y == x + 1) && (x != subm1)) { // the diagonal in next iteration
     const int idx1_aa = lane_a * tile + warp_a;
     const int idx1_ab = lane_b * tile + warp_a;
@@ -409,7 +411,6 @@ void FWrem_64(
       if (warp_a == k) s_kj[idx2_b] = ij_ab;
       if (warp_b == k) s_kj[idx2_a] = ij_ba;
       if (warp_b == k) s_kj[idx2_b] = ij_bb;
-      __syncthreads();
 
       mtype ik_a, ik_b;
       if (k < ws) {
@@ -421,6 +422,7 @@ void FWrem_64(
         ik_b = __shfl_sync(~0, ij_bb, k - ws);
       }
 
+      __syncthreads();
       const mtype sk_a = s_kj[idx2_a];
       const mtype sk_b = s_kj[idx2_b];
 
@@ -484,10 +486,8 @@ static void FW_gpu_64(const ECLgraph g, mtype* const AdjMat, const int repeat)
 
   printf("GPU matrix size: %.1f MB\n", sizeof(mtype) * upper * upper / (1024.0 * 1024.0));
 
-  timeval start, end;
-
   cudaDeviceSynchronize();
-  gettimeofday(&start, NULL);
+  auto start = std::chrono::steady_clock::now();
 
   for (int i = 0; i < repeat; i++) {
     // run GPU init code
@@ -496,12 +496,12 @@ static void FW_gpu_64(const ECLgraph g, mtype* const AdjMat, const int repeat)
   }
 
   cudaDeviceSynchronize();
-  gettimeofday(&end, NULL);
-  const double inittime = end.tv_sec - start.tv_sec + (end.tv_usec - start.tv_usec) / 1000000.0;
-  printf("Average kernel (initialization) time: %10.6f s\n", inittime / repeat);
+  auto end = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+  printf("Average kernel (initialization) time: %10.6f s\n", time * 1e-9 / repeat);
 
   const int subm1 = sub - 1;
-  gettimeofday(&start, NULL);
+  start = std::chrono::steady_clock::now();
 
   for (int i = 0; i < repeat; i++) {
     // compute 64*64 tile
@@ -515,9 +515,9 @@ static void FW_gpu_64(const ECLgraph g, mtype* const AdjMat, const int repeat)
     }
   }
   cudaDeviceSynchronize();
-  gettimeofday(&end, NULL);
-  const double comptime = end.tv_sec - start.tv_sec + (end.tv_usec - start.tv_usec) / 1000000.0;
-  printf("Average kernel (compute) time: %10.6f s\n", comptime / repeat);
+  end = std::chrono::steady_clock::now();
+  time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+  printf("Average kernel (compute) time: %10.6f s\n", time * 1e-9 / repeat);
 
   // copy result back to CPU
   if (cudaSuccess != cudaMemcpy(AdjMat, d_AdjMat, sizeof(mtype) * upper * upper, cudaMemcpyDeviceToHost))
@@ -534,8 +534,7 @@ static void FW_gpu_64(const ECLgraph g, mtype* const AdjMat, const int repeat)
 
 static void FW_cpu(const ECLgraph g, mtype* const AdjMat)
 {
-  timeval start, end;
-  gettimeofday(&start, NULL);
+  auto start = std::chrono::steady_clock::now();
 
   for (int i = 0; i < g.nodes; i++) {
     for (int j = 0; j < g.nodes; j++) {
@@ -550,11 +549,11 @@ static void FW_cpu(const ECLgraph g, mtype* const AdjMat)
     }
   }
 
-  gettimeofday(&end, NULL);
-  const double inittime = end.tv_sec - start.tv_sec + (end.tv_usec - start.tv_usec) / 1000000.0;
-  printf("CPU init time: %10.6f s\n", inittime);
+  auto end = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+  printf("CPU init time: %10.6f s\n", time * 1e-9);
 
-  gettimeofday(&start, NULL);
+  start = std::chrono::steady_clock::now();
 
   for (int k = 0; k < g.nodes; k++) {
     for (int i = 0; i < g.nodes; i++) {
@@ -566,9 +565,9 @@ static void FW_cpu(const ECLgraph g, mtype* const AdjMat)
     }
   }
 
-  gettimeofday(&end, NULL);
-  const double comptime = end.tv_sec - start.tv_sec + (end.tv_usec - start.tv_usec) / 1000000.0;
-  printf("CPU comp time: %10.6f s\n", comptime);
+  end = std::chrono::steady_clock::now();
+  time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+  printf("CPU comp time: %10.6f s\n", time * 1e-9);
 }
 
 int main(int argc, char* argv[])

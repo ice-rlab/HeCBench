@@ -39,7 +39,7 @@ Authors: Martin Burtscher
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#include <sys/time.h>
+#include <chrono>
 #include <cuda.h>
 #include "parameters.h"
 #include "kernels.h"
@@ -66,8 +66,6 @@ int main(int argc, char *argv[])
   unsigned int *d_state;
   unsigned char *d_bfsm, *d_same;
   int *d_smax, *d_sbest, *d_oldmax;
-  double runtime;
-  struct timeval starttime, endtime;
 
   data = (unsigned short*) malloc (sizeof(unsigned short) * length);
 
@@ -94,7 +92,7 @@ int main(int argc, char *argv[])
   cudaMalloc((void **)&d_oldmax, POPCNT * sizeof(int));
 
   cudaDeviceSynchronize();
-  gettimeofday(&starttime, NULL);
+  auto start = std::chrono::steady_clock::now();
 
   for (int i = 0; i < REPEAT; i++) {
     cudaMemset(d_best, 0, sizeof(int) * (FSMSIZE * 2 + 3));
@@ -104,15 +102,15 @@ int main(int argc, char *argv[])
   }
 
   cudaDeviceSynchronize();
-  gettimeofday(&endtime, NULL);
-
-  runtime = endtime.tv_sec + endtime.tv_usec / 1000000.0 - starttime.tv_sec - starttime.tv_usec / 1000000.0;
-  printf("%.6lf\t#runtime [s]\n", runtime / REPEAT);
+  auto end = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+  double avg_runtime = time * 1e-9 / REPEAT;
+  printf("%.6lf\t#runtime [s]\n", avg_runtime);
 
   cudaMemcpy(best, d_best, sizeof(int) * (FSMSIZE * 2 + 3), cudaMemcpyDeviceToHost);
   besthits = best[1];
   generations = best[2];
-  printf("%.6lf\t#throughput [Gtr/s]\n", 0.000000001 * POPSIZE * generations * length / (runtime / REPEAT));
+  printf("%.6lf\t#throughput [Gtr/s]\n", 1e-9 * POPSIZE * generations * length / avg_runtime);
 
   // evaluate saturating up/down counter
   for (i = 0; i < FSMSIZE; i++) {

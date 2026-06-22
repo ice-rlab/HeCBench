@@ -137,17 +137,22 @@ void init(sycl::nd_item<1> &item,
 // a) Subtracting the row by the minimum in each row
 const int n_rows_per_block = n / n_blocks_reduction;
 
-void min_in_rows_warp_reduce(volatile data* sdata, int tid) {
+void min_in_rows_warp_reduce(sycl::sub_group &sg, data* sdata, int tid) {
   if (n_threads_reduction >= 64 && n_rows_per_block < 64) sdata[tid] =
       sycl::min((int)(sdata[tid]), (int)(sdata[tid + 32]));
+  sycl::group_barrier(sg);
   if (n_threads_reduction >= 32 && n_rows_per_block < 32) sdata[tid] =
       sycl::min((int)(sdata[tid]), (int)(sdata[tid + 16]));
+  sycl::group_barrier(sg);
   if (n_threads_reduction >= 16 && n_rows_per_block < 16) sdata[tid] =
       sycl::min((int)(sdata[tid]), (int)(sdata[tid + 8]));
+  sycl::group_barrier(sg);
   if (n_threads_reduction >= 8 && n_rows_per_block < 8) sdata[tid] =
       sycl::min((int)(sdata[tid]), (int)(sdata[tid + 4]));
+  sycl::group_barrier(sg);
   if (n_threads_reduction >= 4 && n_rows_per_block < 4) sdata[tid] =
       sycl::min((int)(sdata[tid]), (int)(sdata[tid + 2]));
+  sycl::group_barrier(sg);
   if (n_threads_reduction >= 2 && n_rows_per_block < 2) sdata[tid] =
       sycl::min((int)(sdata[tid]), (int)(sdata[tid + 1]));
 }
@@ -157,6 +162,7 @@ void calc_min_in_rows(sycl::nd_item<1> &item, data *slack,
 {
   unsigned int tid = item.get_local_id(0);
   unsigned int bid = item.get_group(0);
+  auto sg = item.get_sub_group();
   // One gets the line and column from the blockID and threadID.
   unsigned int l = bid * n_rows_per_block + tid % n_rows_per_block;
   unsigned int c = tid / n_rows_per_block;
@@ -173,43 +179,48 @@ void calc_min_in_rows(sycl::nd_item<1> &item, data *slack,
 
   __syncthreads();
   if (n_threads_reduction >= 1024 && n_rows_per_block < 1024) {
-    if (tid < 512) {
+    if (tid < 512)
       sdata[tid] = sycl::min((int)(sdata[tid]), (int)(sdata[tid + 512]));
-    } __syncthreads();
+    __syncthreads();
   }
   if (n_threads_reduction >= 512 && n_rows_per_block < 512) {
-    if (tid < 256) {
+    if (tid < 256)
       sdata[tid] = sycl::min((int)(sdata[tid]), (int)(sdata[tid + 256]));
-    } __syncthreads();
+    __syncthreads();
   }
   if (n_threads_reduction >= 256 && n_rows_per_block < 256) {
-    if (tid < 128) {
+    if (tid < 128)
       sdata[tid] = sycl::min((int)(sdata[tid]), (int)(sdata[tid + 128]));
-    } __syncthreads();
+    __syncthreads();
   }
   if (n_threads_reduction >= 128 && n_rows_per_block < 128) {
-    if (tid < 64) {
+    if (tid < 64)
       sdata[tid] = sycl::min((int)(sdata[tid]), (int)(sdata[tid + 64]));
-    } __syncthreads();
+    __syncthreads();
   }
-  if (tid < 32) min_in_rows_warp_reduce(sdata, tid);
+  if (tid < 32) min_in_rows_warp_reduce(sg, sdata, tid);
   if (tid < n_rows_per_block) min_in_rows[bid*n_rows_per_block + tid] = sdata[tid];
 }
 
 // a) Subtracting the column by the minimum in each column
 const int n_cols_per_block = n / n_blocks_reduction;
 
-void min_in_cols_warp_reduce(volatile data* sdata, int tid) {
+void min_in_cols_warp_reduce(sycl::sub_group &sg, data* sdata, int tid) {
   if (n_threads_reduction >= 64 && n_cols_per_block < 64) sdata[tid] =
       sycl::min((int)(sdata[tid]), (int)(sdata[tid + 32]));
+  sycl::group_barrier(sg);
   if (n_threads_reduction >= 32 && n_cols_per_block < 32) sdata[tid] =
       sycl::min((int)(sdata[tid]), (int)(sdata[tid + 16]));
+  sycl::group_barrier(sg);
   if (n_threads_reduction >= 16 && n_cols_per_block < 16) sdata[tid] =
       sycl::min((int)(sdata[tid]), (int)(sdata[tid + 8]));
+  sycl::group_barrier(sg);
   if (n_threads_reduction >= 8 && n_cols_per_block < 8) sdata[tid] =
       sycl::min((int)(sdata[tid]), (int)(sdata[tid + 4]));
+  sycl::group_barrier(sg);
   if (n_threads_reduction >= 4 && n_cols_per_block < 4) sdata[tid] =
       sycl::min((int)(sdata[tid]), (int)(sdata[tid + 2]));
+  sycl::group_barrier(sg);
   if (n_threads_reduction >= 2 && n_cols_per_block < 2) sdata[tid] =
       sycl::min((int)(sdata[tid]), (int)(sdata[tid + 1]));
 }
@@ -222,6 +233,7 @@ void calc_min_in_cols(
 {
   unsigned int tid = item.get_local_id(0);
   unsigned int bid = item.get_group(0);
+  auto sg = item.get_sub_group();
   // One gets the line and column from the blockID and threadID.
   unsigned int c = bid * n_cols_per_block + tid % n_cols_per_block;
   unsigned int l = tid / n_cols_per_block;
@@ -245,7 +257,7 @@ void calc_min_in_cols(
     if (tid < 128) { sdata[tid] = sycl::min((int)(sdata[tid]), (int)(sdata[tid + 128])); } __syncthreads(); }
   if (n_threads_reduction >= 128 && n_cols_per_block < 128) {
     if (tid <  64) { sdata[tid] = sycl::min((int)(sdata[tid]), (int)(sdata[tid + 64])); } __syncthreads(); }
-  if (tid < 32) min_in_cols_warp_reduce(sdata, tid);
+  if (tid < 32) min_in_cols_warp_reduce(sg, sdata, tid);
   if (tid < n_cols_per_block) min_in_cols[bid*n_cols_per_block + tid] = sdata[tid];
 }
 
@@ -525,17 +537,22 @@ void step_5b(
 // Return to Step 4 without altering any stars, primes, or covered lines.
 
 template <unsigned int blockSize>
-void min_warp_reduce(volatile data* sdata, int tid) {
+void min_warp_reduce(sycl::sub_group &sg, data* sdata, int tid) {
   if (blockSize >= 64) sdata[tid] =
       sycl::min((int)(sdata[tid]), (int)(sdata[tid + 32]));
+  sycl::group_barrier(sg);
   if (blockSize >= 32) sdata[tid] =
       sycl::min((int)(sdata[tid]), (int)(sdata[tid + 16]));
+  sycl::group_barrier(sg);
   if (blockSize >= 16) sdata[tid] =
       sycl::min((int)(sdata[tid]), (int)(sdata[tid + 8]));
+  sycl::group_barrier(sg);
   if (blockSize >= 8) sdata[tid] =
       sycl::min((int)(sdata[tid]), (int)(sdata[tid + 4]));
+  sycl::group_barrier(sg);
   if (blockSize >= 4) sdata[tid] =
       sycl::min((int)(sdata[tid]), (int)(sdata[tid + 2]));
+  sycl::group_barrier(sg);
   if (blockSize >= 2) sdata[tid] =
       sycl::min((int)(sdata[tid]), (int)(sdata[tid + 1]));
 }
@@ -550,6 +567,7 @@ void min_reduce1(
   const int *__restrict cover_column,
   data *__restrict sdata)
 {
+  auto sg = item.get_sub_group();
   unsigned int tid = item.get_local_id(0);
   unsigned int i = item.get_group(0) * (blockSize * 2) + tid;
   unsigned int gridSize = blockSize * 2 * item.get_group_range(0);
@@ -593,7 +611,7 @@ void min_reduce1(
       sdata[tid] = sycl::min((int)(sdata[tid]), (int)(sdata[tid + 64]));
     } __syncthreads();
   }
-  if (tid < 32) min_warp_reduce<blockSize>(sdata, tid);
+  if (tid < 32) min_warp_reduce<blockSize>(sg, sdata, tid);
   if (tid == 0) g_odata[item.get_group(0)] = sdata[0];
 }
 
@@ -605,6 +623,7 @@ void min_reduce2(
   sycl::nd_item<1> &item,
   data *__restrict sdata)
 {
+  auto sg = item.get_sub_group();
   unsigned int tid = item.get_local_id(0);
   unsigned int i = item.get_group(0) * (blockSize * 2) + tid;
 
@@ -631,7 +650,7 @@ void min_reduce2(
       sdata[tid] = sycl::min((int)(sdata[tid]), (int)(sdata[tid + 64]));
     } __syncthreads();
   }
-  if (tid < 32) min_warp_reduce<blockSize>(sdata, tid);
+  if (tid < 32) min_warp_reduce<blockSize>(sg, sdata, tid);
   if (tid == 0) g_odata[item.get_group(0)] = sdata[0];
 }
 

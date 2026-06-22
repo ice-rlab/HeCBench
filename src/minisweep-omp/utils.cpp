@@ -421,14 +421,6 @@ StepInfo StepScheduler_stepinfo( const StepScheduler* stepscheduler,
   return stepinfo;
 }
 
-double get_time()
-{
-  struct timeval tv;
-  gettimeofday( &tv, NULL );
-  double result = ( (double) tv.tv_sec * 1.e6 + (double) tv.tv_usec );
-  return result;
-}
-
 double Quantities_flops_per_solve( const Dimensions dims )
 {
   return 3. + 3. * NDIM;

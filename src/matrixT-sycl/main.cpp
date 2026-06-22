@@ -8,8 +8,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include <chrono>
-#include <cmath>
 #include <sycl/sycl.hpp>
 
 // Each block transposes/copies a tile of TILE_DIM x TILE_DIM elements
@@ -183,6 +183,41 @@ void transposeNoBankConflicts(
     odata[index_out+i*height] = tile[threadIdx_x*(TILE_DIM+1)+threadIdx_y+i];
   }
 }
+
+#define SWIZZLE(row, col) ((col) ^ (row))
+void transposeSwizzle(
+  sycl::nd_item<2> &item,
+        float *__restrict tile,
+        float *__restrict__ odata,
+  const float *__restrict__ idata,
+  int width, int height)
+{
+  int bidx = item.get_group(1);
+  int bidy = item.get_group(0);
+  int threadIdx_x = item.get_local_id(1);
+  int threadIdx_y = item.get_local_id(0);
+
+  int xIndex = bidx * TILE_DIM + threadIdx_x;
+  int yIndex = bidy * TILE_DIM + threadIdx_y;
+  int index_in = xIndex + (yIndex)*width;
+
+  xIndex = bidy * TILE_DIM + threadIdx_x;
+  yIndex = bidx * TILE_DIM + threadIdx_y;
+  int index_out = xIndex + (yIndex)*height;
+
+  for (int i=0; i<TILE_DIM; i+=BLOCK_ROWS) {
+    // Store at swizzled columns
+    tile[(threadIdx_y + i) * TILE_DIM + SWIZZLE(threadIdx_y + i, threadIdx_x)] = idata[index_in + i*width];
+  }
+
+  __syncthreads();
+
+  for (int i=0; i<TILE_DIM; i+=BLOCK_ROWS) {
+    // Read from swizzled columns
+    odata[index_out + i*height] = tile[threadIdx_x * TILE_DIM + SWIZZLE(threadIdx_x, threadIdx_y + i)];
+  }
+}
+
 
 // Transpose that effectively reorders execution of thread blocks along diagonals of the
 // matrix (also coalesced and has no bank conflicts)
@@ -422,12 +457,12 @@ int main(int argc, char **argv)
 
   bool success = true;
 
-  for (int k = 0; k < 8; k++)
+  for (int k = 0; k < 9; k++)
   {
     switch (k)
     {
       case 0: {
-        kernelName = "simple copy       ";
+        kernelName = "simple memory copy  ";
         auto start = std::chrono::steady_clock::now();
 
         for (int i = 0; i < repeat; i++) {
@@ -447,7 +482,7 @@ int main(int argc, char **argv)
       break;
 
       case 1: {
-        kernelName = "shared memory copy";
+        kernelName = "shared memory copy  ";
         auto start = std::chrono::steady_clock::now();
 
         for (int i = 0; i < repeat; i++) {
@@ -473,82 +508,7 @@ int main(int argc, char **argv)
       break;
 
       case 2: {
-        kernelName = "naive             ";
-        auto start = std::chrono::steady_clock::now();
-
-        for (int i = 0; i < repeat; i++) {
-          q.submit([&] (sycl::handler &cgh) {
-            cgh.parallel_for<class naive>(sycl::nd_range<2>(gws, lws), [=] (sycl::nd_item<2> item) {
-              transposeNaive(
-                item,
-                d_odata,
-                d_idata,
-                size_x, size_y);
-            });
-          });
-        }
-
-        q.wait();
-        auto end = std::chrono::steady_clock::now();
-        auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-        printf("Average kernel (%s) execution time: %f (us)\n", kernelName, (time * 1e-3f) / repeat);
-      }
-      break;
-
-      case 3: {
-        kernelName = "coalesced         ";
-        auto start = std::chrono::steady_clock::now();
-
-        for (int i = 0; i < repeat; i++) {
-          q.submit([&] (sycl::handler &cgh) {
-            sycl::local_accessor<float, 1> sm (sycl::range<1>(TILE_DIM*TILE_DIM), cgh);
-            cgh.parallel_for<class coalesced>(
-              sycl::nd_range<2>(gws, lws), [=] (sycl::nd_item<2> item) {
-              transposeCoalesced(
-                item,
-                sm.get_multi_ptr<sycl::access::decorated::no>().get(),
-                d_odata,
-                d_idata,
-                size_x, size_y);
-            });
-          });
-        }
-
-        q.wait();
-        auto end = std::chrono::steady_clock::now();
-        auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-        printf("Average kernel (%s) execution time: %f (us)\n", kernelName, (time * 1e-3f) / repeat);
-      }
-      break;
-
-      case 4: {
-        kernelName = "optimized         ";
-        auto start = std::chrono::steady_clock::now();
-
-        for (int i = 0; i < repeat; i++) {
-          q.submit([&] (sycl::handler &cgh) {
-            sycl::local_accessor<float, 1> sm (sycl::range<1>(TILE_DIM*(TILE_DIM+1)), cgh);
-            cgh.parallel_for<class optimized>(
-              sycl::nd_range<2>(gws, lws), [=] (sycl::nd_item<2> item) {
-              transposeNoBankConflicts(
-                item,
-                sm.get_multi_ptr<sycl::access::decorated::no>().get(),
-                d_odata,
-                d_idata,
-                size_x, size_y);
-            });
-          });
-        }
-
-        q.wait();
-        auto end = std::chrono::steady_clock::now();
-        auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-        printf("Average kernel (%s) execution time: %f (us)\n", kernelName, (time * 1e-3f) / repeat);
-      }
-      break;
-
-      case 5: {
-        kernelName = "coarse-grained    ";
+        kernelName = "coarse-grained      ";
         auto start = std::chrono::steady_clock::now();
 
         for (int i = 0; i < repeat; i++) {
@@ -573,8 +533,8 @@ int main(int argc, char **argv)
       }
       break;
 
-      case 6: {
-        kernelName = "fine-grained      ";
+      case 3: {
+        kernelName = "fine-grained        ";
         auto start = std::chrono::steady_clock::now();
 
         for (int i = 0; i < repeat; i++) {
@@ -599,8 +559,110 @@ int main(int argc, char **argv)
       }
       break;
 
+
+      case 4: {
+        kernelName = "transpose naive     ";
+        auto start = std::chrono::steady_clock::now();
+
+        for (int i = 0; i < repeat; i++) {
+          q.submit([&] (sycl::handler &cgh) {
+            cgh.parallel_for<class naive>(sycl::nd_range<2>(gws, lws), [=] (sycl::nd_item<2> item) {
+              transposeNaive(
+                item,
+                d_odata,
+                d_idata,
+                size_x, size_y);
+            });
+          });
+        }
+
+        q.wait();
+        auto end = std::chrono::steady_clock::now();
+        auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+        printf("Average kernel (%s) execution time: %f (us)\n", kernelName, (time * 1e-3f) / repeat);
+      }
+      break;
+
+      case 5: {
+        kernelName = "transpose coalesced ";
+        auto start = std::chrono::steady_clock::now();
+
+        for (int i = 0; i < repeat; i++) {
+          q.submit([&] (sycl::handler &cgh) {
+            sycl::local_accessor<float, 1> sm (sycl::range<1>(TILE_DIM*TILE_DIM), cgh);
+            cgh.parallel_for<class coalesced>(
+              sycl::nd_range<2>(gws, lws), [=] (sycl::nd_item<2> item) {
+              transposeCoalesced(
+                item,
+                sm.get_multi_ptr<sycl::access::decorated::no>().get(),
+                d_odata,
+                d_idata,
+                size_x, size_y);
+            });
+          });
+        }
+
+        q.wait();
+        auto end = std::chrono::steady_clock::now();
+        auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+        printf("Average kernel (%s) execution time: %f (us)\n", kernelName, (time * 1e-3f) / repeat);
+      }
+      break;
+
+      case 6: {
+        kernelName = "transpose smem pad  ";
+        auto start = std::chrono::steady_clock::now();
+
+        for (int i = 0; i < repeat; i++) {
+          q.submit([&] (sycl::handler &cgh) {
+            sycl::local_accessor<float, 1> sm (sycl::range<1>(TILE_DIM*(TILE_DIM+1)), cgh);
+            cgh.parallel_for<class smem_pad>(
+              sycl::nd_range<2>(gws, lws), [=] (sycl::nd_item<2> item) {
+              transposeNoBankConflicts(
+                item,
+                sm.get_multi_ptr<sycl::access::decorated::no>().get(),
+                d_odata,
+                d_idata,
+                size_x, size_y);
+            });
+          });
+        }
+
+        q.wait();
+        auto end = std::chrono::steady_clock::now();
+        auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+        printf("Average kernel (%s) execution time: %f (us)\n", kernelName, (time * 1e-3f) / repeat);
+      }
+      break;
+
       case 7: {
-        kernelName = "diagonal          ";
+        kernelName = "transpose swizzle   ";
+        auto start = std::chrono::steady_clock::now();
+
+        for (int i = 0; i < repeat; i++) {
+          q.submit([&] (sycl::handler &cgh) {
+            sycl::local_accessor<float, 1> sm (sycl::range<1>(TILE_DIM*TILE_DIM), cgh);
+            cgh.parallel_for<class swizzle>(
+              sycl::nd_range<2>(gws, lws), [=] (sycl::nd_item<2> item) {
+              transposeSwizzle(
+                item,
+                sm.get_multi_ptr<sycl::access::decorated::no>().get(),
+                d_odata,
+                d_idata,
+                size_x, size_y);
+            });
+          });
+        }
+
+        q.wait();
+        auto end = std::chrono::steady_clock::now();
+        auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+        printf("Average kernel (%s) execution time: %f (us)\n", kernelName, (time * 1e-3f) / repeat);
+      }
+      break;
+
+      case 8: {
+        kernelName = "transpose diagonal  ";
         auto start = std::chrono::steady_clock::now();
 
         for (int i = 0; i < repeat; i++) {
@@ -633,7 +695,7 @@ int main(int argc, char **argv)
     {
       gold = h_idata;
     }
-    else if (k == 5 || k == 6)
+    else if (k == 2 || k == 3)
     {
       gold = h_odata;   // fine- and coarse-grained kernels are not full transposes, so bypass check
     }

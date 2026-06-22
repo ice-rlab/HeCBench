@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/time.h>
 #include <string.h>
 #include <stdint.h>
 #include <float.h>
 #include <assert.h>
+#include <chrono>
 #include <cuda.h>
 
 #define PI 3.14159265359

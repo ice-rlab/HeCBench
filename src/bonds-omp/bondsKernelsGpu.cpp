@@ -6,7 +6,7 @@
 
 
 #pragma omp declare target
-int monthLengthKernelGpu(int month, bool leapYear) 
+int monthLengthKernelGpu(int month, bool leapYear)
 {
   int MonthLength[12];
   MonthLength[0]=31;
@@ -40,7 +40,7 @@ int monthLengthKernelGpu(int month, bool leapYear)
 }
 
 
-int monthOffsetKernelGpu(int m, bool leapYear) 
+int monthOffsetKernelGpu(int m, bool leapYear)
 {
   int MonthOffset[13];
   MonthOffset[0]=0;
@@ -215,7 +215,7 @@ int yearOffsetKernelGpu(int y)
 }
 
 
-bool isLeapKernelGpu(int y) 
+bool isLeapKernelGpu(int y)
 {
   bool YearIsLeap[121];
 
@@ -345,7 +345,7 @@ bool isLeapKernelGpu(int y)
 }
 
 
-bondsDateStruct intializeDateKernelGpu(int d, int m, int y) 
+bondsDateStruct intializeDateKernelGpu(int d, int m, int y)
 {
   bondsDateStruct currDate;
 
@@ -365,11 +365,11 @@ bondsDateStruct intializeDateKernelGpu(int d, int m, int y)
 dataType yearFractionGpu(bondsDateStruct d1,
     bondsDateStruct d2, int dayCounter)
 {
-  return dayCountGpu(d1, d2, dayCounter) / (dataType)360.0; 
+  return dayCountGpu(d1, d2, dayCounter) / (dataType)360.0;
 }
 
 
-int dayCountGpu(bondsDateStruct d1, bondsDateStruct d2, int dayCounter) 
+int dayCountGpu(bondsDateStruct d1, bondsDateStruct d2, int dayCounter)
 {
   if (dayCounter == USE_EXACT_DAY)
   {
@@ -377,9 +377,9 @@ int dayCountGpu(bondsDateStruct d1, bondsDateStruct d2, int dayCounter)
     int mm1 = d1.month, mm2 = d2.month;
     int yy1 = d1.year, yy2 = d2.year;
 
-    if (dd2 == 31 && dd1 < 30) 
-    { 
-      dd2 = 1; mm2++; 
+    if (dd2 == 31 && dd1 < 30)
+    {
+      dd2 = 1; mm2++;
     }
 
     return 360*(yy2-yy1) + 30*(mm2-mm1-1) + MAX(0, 30-dd1) + MIN(30, dd2);
@@ -419,19 +419,19 @@ bool cashFlowHasOccurredGpu(bondsDateStruct refDate, bondsDateStruct eventDate)
 }
 
 
-bondsDateStruct advanceDateGpu(bondsDateStruct date, int numMonthsAdvance) 
+bondsDateStruct advanceDateGpu(bondsDateStruct date, int numMonthsAdvance)
 {
   int d = date.day;
   int m = date.month+numMonthsAdvance;
   int y = date.year;
 
-  while (m > 12) 
+  while (m > 12)
   {
     m -= 12;
     y += 1;
   }
 
-  while (m < 1) 
+  while (m < 1)
   {
     m += 12;
     y -= 1;
@@ -447,9 +447,9 @@ bondsDateStruct advanceDateGpu(bondsDateStruct date, int numMonthsAdvance)
 }
 
 
-dataType getDirtyPriceGpu(bondStruct *bond, 
-    bondsYieldTermStruct *discountCurve, 
-    bondsDateStruct *currDate, 
+dataType getDirtyPriceGpu(bondStruct *bond,
+    bondsYieldTermStruct *discountCurve,
+    bondsDateStruct *currDate,
     int bondNum, cashFlowsStruct cashFlows, int numLegs)
 {
   dataType currentNotional = bondNotionalGpu();
@@ -471,14 +471,14 @@ dataType getAccruedAmountGpu(bondsDateStruct *maturityDate, bondsDateStruct date
   if (currentNotional == (dataType)0.0)
     return (dataType)0.0;
 
-  return cashFlowsAccruedAmountGpu(cashFlows, false, date, numLegs, maturityDate, bondNum) * 
+  return cashFlowsAccruedAmountGpu(cashFlows, false, date, numLegs, maturityDate, bondNum) *
     (dataType)100.0 / bondNotionalGpu();
 }
 
 
-dataType bondFunctionsAccruedAmountGpu(bondsDateStruct *maturityDate, bondsDateStruct date, int bondNum, cashFlowsStruct cashFlows, int numLegs) 
+dataType bondFunctionsAccruedAmountGpu(bondsDateStruct *maturityDate, bondsDateStruct date, int bondNum, cashFlowsStruct cashFlows, int numLegs)
 {
-  return cashFlowsAccruedAmountGpu(cashFlows, false, date, numLegs, maturityDate, bondNum) * 
+  return cashFlowsAccruedAmountGpu(cashFlows, false, date, numLegs, maturityDate, bondNum) *
     (dataType)100.0 / bondNotionalGpu();
 }
 
@@ -486,9 +486,9 @@ dataType bondFunctionsAccruedAmountGpu(bondsDateStruct *maturityDate, bondsDateS
 dataType cashFlowsAccruedAmountGpu(cashFlowsStruct cashFlows,
     bool includecurrDateFlows,
     bondsDateStruct currDate,
-    int numLegs, bondsDateStruct* maturityDate, int bondNum) 
+    int numLegs, bondsDateStruct* maturityDate, int bondNum)
 {
-  int legComputeNum = cashFlowsNextCashFlowNumGpu(cashFlows, currDate, numLegs); 
+  int legComputeNum = cashFlowsNextCashFlowNumGpu(cashFlows, currDate, numLegs);
 
   dataType result = 0.0;
 
@@ -501,11 +501,11 @@ dataType cashFlowsAccruedAmountGpu(cashFlowsStruct cashFlows,
 }
 
 
-dataType fixedRateCouponAccruedAmountGpu(cashFlowsStruct cashFlows, int numLeg, 
-    bondsDateStruct d, bondsDateStruct* maturityDate, int bondNum) 
+dataType fixedRateCouponAccruedAmountGpu(cashFlowsStruct cashFlows, int numLeg,
+    bondsDateStruct d, bondsDateStruct* maturityDate, int bondNum)
 {
-  if (d.dateSerialNum <= cashFlows.legs[numLeg].accrualStartDate.dateSerialNum || 
-      d.dateSerialNum > maturityDate[bondNum].dateSerialNum) 
+  if (d.dateSerialNum <= cashFlows.legs[numLeg].accrualStartDate.dateSerialNum ||
+      d.dateSerialNum > maturityDate[bondNum].dateSerialNum)
   {
     return (dataType)0.0;
   }
@@ -517,7 +517,7 @@ dataType fixedRateCouponAccruedAmountGpu(cashFlowsStruct cashFlows, int numLeg,
       endDate = d;
     }
 
-    return fixedRateCouponNominalGpu()*(interestRateCompoundFactorGpu(cashFlows.intRate, 
+    return fixedRateCouponNominalGpu()*(interestRateCompoundFactorGpu(cashFlows.intRate,
           cashFlows.legs[numLeg].accrualStartDate, endDate, cashFlows.dayCounter) - (dataType)1.0);
   }
 }
@@ -528,7 +528,7 @@ dataType cashFlowsNpvGpu(cashFlowsStruct cashFlows,
     bool includecurrDateFlows,
     bondsDateStruct currDate,
     bondsDateStruct npvDate,
-    int numLegs) 
+    int numLegs)
 {
   npvDate = currDate;
 
@@ -555,19 +555,19 @@ dataType bondsYieldTermStructureDiscountGpu(bondsYieldTermStruct ytStruct, bonds
 }
 
 
-dataType flatForwardDiscountImplGpu(intRateStruct intRate, dataType t) 
+dataType flatForwardDiscountImplGpu(intRateStruct intRate, dataType t)
 {
   return interestRateDiscountFactorGpu(intRate, t);
 }
 
 
-dataType interestRateDiscountFactorGpu(intRateStruct intRate, dataType t) 
+dataType interestRateDiscountFactorGpu(intRateStruct intRate, dataType t)
 {
   return (dataType)1.0/interestRateCompoundFactorGpuTwoArgs(intRate, t);
 }
 
 
-dataType interestRateCompoundFactorGpuTwoArgs(intRateStruct intRate, dataType t) 
+dataType interestRateCompoundFactorGpuTwoArgs(intRateStruct intRate, dataType t)
 {
   if (intRate.comp == SIMPLE_INTEREST)
     return (dataType)1.0 + intRate.rate*t;
@@ -579,7 +579,7 @@ dataType interestRateCompoundFactorGpuTwoArgs(intRateStruct intRate, dataType t)
 }
 
 
-dataType fixedRateCouponAmountGpu(cashFlowsStruct cashFlows, int numLeg) 
+dataType fixedRateCouponAmountGpu(cashFlowsStruct cashFlows, int numLeg)
 {
   if (cashFlows.legs[numLeg].amount == COMPUTE_AMOUNT)
   {
@@ -600,16 +600,16 @@ dataType interestRateCompoundFactorGpu(intRateStruct intRate, bondsDateStruct d1
 }
 
 
-dataType interestRateImpliedRateGpu(dataType compound, int comp, dataType freq, dataType t) 
+dataType interestRateImpliedRateGpu(dataType compound, int comp, dataType freq, dataType t)
 {
   dataType r = 0.0f;
-  if (compound==(dataType)1.0) 
+  if (compound==(dataType)1.0)
   {
     r = 0.0;
-  } 
-  else 
+  }
+  else
   {
-    switch (comp) 
+    switch (comp)
     {
       case SIMPLE_INTEREST:
         r = (compound - (dataType)1.0)/t;
@@ -626,10 +626,10 @@ dataType interestRateImpliedRateGpu(dataType compound, int comp, dataType freq, 
 
 int cashFlowsNextCashFlowNumGpu(cashFlowsStruct cashFlows,
     bondsDateStruct currDate,
-    int numLegs) 
+    int numLegs)
 {
   int i;
-  for (i = 0; i < numLegs; ++i) 
+  for (i = 0; i < numLegs; ++i)
   {
     if ( ! (cashFlowHasOccurredGpu(cashFlows.legs[i].paymentDate, currDate) ))
       return i;
@@ -676,7 +676,7 @@ dataType getBondFunctionsYieldGpu(dataType cleanPrice,
     bondsDateStruct* maturityDate,
     int bondNum, cashFlowsStruct cashFlows, int numLegs)
 {
-  dataType dirtyPrice = cleanPrice + bondFunctionsAccruedAmountGpu(maturityDate, settlement, bondNum, cashFlows, numLegs); 
+  dataType dirtyPrice = cleanPrice + bondFunctionsAccruedAmountGpu(maturityDate, settlement, bondNum, cashFlows, numLegs);
   dirtyPrice /= (dataType)100.0 / bondNotionalGpu();
 
   return getCashFlowsYieldGpu(cashFlows, dirtyPrice,
@@ -738,13 +738,13 @@ dataType solverSolveGpu(solverStruct solver,
   {
     return solver.root_;
   }
-  else if (closeGpu(solver.fxMax_, (dataType)0.0)) 
+  else if (closeGpu(solver.fxMax_, (dataType)0.0))
   {
     solver.xMin_ = /*enforceBounds*/(solver.root_ - step);
     solver.fxMin_ = fOpGpu(f, solver.xMin_, cashFlows, numLegs);
     solver.xMax_ = solver.root_;
-  } 
-  else 
+  }
+  else
   {
     solver.xMin_ = solver.root_;
     solver.fxMin_ = solver.fxMax_;
@@ -753,9 +753,9 @@ dataType solverSolveGpu(solverStruct solver,
   }
 
   solver.evaluationNumber_ = 2;
-  while (solver.evaluationNumber_ <= solver.maxEvaluations_) 
+  while (solver.evaluationNumber_ <= solver.maxEvaluations_)
   {
-    if (solver.fxMin_*solver.fxMax_ <= (dataType)0.0) 
+    if (solver.fxMin_*solver.fxMax_ <= (dataType)0.0)
     {
       if (closeGpu(solver.fxMin_, (dataType)0.0))
         return solver.xMin_;
@@ -764,24 +764,24 @@ dataType solverSolveGpu(solverStruct solver,
       solver.root_ = (solver.xMax_+solver.xMin_)/(dataType)2.0;
       return solveImplGpu(solver, f, accuracy, cashFlows, numLegs);
     }
-    if (fabs(solver.fxMin_) < fabs(solver.fxMax_)) 
+    if (fabs(solver.fxMin_) < fabs(solver.fxMax_))
     {
       solver.xMin_ = /*enforceBounds*/(solver.xMin_+growthFactor*(solver.xMin_ - solver.xMax_));
       solver.fxMin_= fOpGpu(f, solver.xMin_, cashFlows, numLegs);
-    } 
-    else if (fabs(solver.fxMin_) > fabs(solver.fxMax_)) 
+    }
+    else if (fabs(solver.fxMin_) > fabs(solver.fxMax_))
     {
       solver.xMax_ = /*enforceBounds*/(solver.xMax_+growthFactor*(solver.xMax_ - solver.xMin_));
       solver.fxMax_= fOpGpu(f, solver.xMax_, cashFlows, numLegs);
-    } 
-    else if (flipflop == -1) 
+    }
+    else if (flipflop == -1)
     {
       solver.xMin_ = /*enforceBounds*/(solver.xMin_+growthFactor*(solver.xMin_ - solver.xMax_));
       solver.fxMin_= fOpGpu(f, solver.xMin_, cashFlows, numLegs);
       solver.evaluationNumber_++;
       flipflop = 1;
-    } 
-    else if (flipflop == 1) 
+    }
+    else if (flipflop == 1)
     {
       solver.xMax_ = /*enforceBounds*/(solver.xMax_+growthFactor*(solver.xMax_ - solver.xMin_));
       solver.fxMax_= fOpGpu(f, solver.xMax_, cashFlows, numLegs);
@@ -799,7 +799,7 @@ dataType cashFlowsNpvYieldGpu(cashFlowsStruct cashFlows,
     bool includecurrDateFlows,
     bondsDateStruct currDate,
     bondsDateStruct npvDate,
-    int numLegs) 
+    int numLegs)
 {
   dataType npv = 0.0;
   dataType discount = 1.0;
@@ -807,24 +807,24 @@ dataType cashFlowsNpvYieldGpu(cashFlowsStruct cashFlows,
   bool first = true;
 
   int i;
-  for (i=0; i<numLegs; ++i) 
+  for (i=0; i<numLegs; ++i)
   {
     if (cashFlowHasOccurredGpu(cashFlows.legs[i].paymentDate, currDate))
       continue;
 
     bondsDateStruct couponDate = cashFlows.legs[i].paymentDate;
     dataType amount = fixedRateCouponAmountGpu(cashFlows, i);
-    if (first) 
+    if (first)
     {
       first = false;
       if (i > 0) {
-        lastDate = advanceDateGpu(cashFlows.legs[i].paymentDate, -1*6); 
+        lastDate = advanceDateGpu(cashFlows.legs[i].paymentDate, -1*6);
       } else {
         lastDate = cashFlows.legs[i].accrualStartDate;
       }
       discount *= interestRateDiscountFactorGpu(y, yearFractionGpu(npvDate, couponDate, y.dayCounter));
-    } 
-    else  
+    }
+    else
     {
       discount *= interestRateDiscountFactorGpu(y, yearFractionGpu(lastDate, couponDate, y.dayCounter));
     }
@@ -893,12 +893,12 @@ dataType solveImplGpu(solverStruct solver, irrFinderStruct f,
   dataType xh, xl;
 
   // Orient the search so that f(xl) < 0
-  if (solver.fxMin_ < (dataType)0.0) 
+  if (solver.fxMin_ < (dataType)0.0)
   {
     xl = solver.xMin_;
     xh = solver.xMax_;
-  } 
-  else 
+  }
+  else
   {
     xh = solver.xMin_;
     xl = solver.xMax_;
@@ -917,18 +917,18 @@ dataType solveImplGpu(solverStruct solver, irrFinderStruct f,
 
   ++solver.evaluationNumber_;
 
-  while (solver.evaluationNumber_<=solver.maxEvaluations_) 
+  while (solver.evaluationNumber_<=solver.maxEvaluations_)
   {
     // Bisect if (out of range || not decreasing fast enough)
     if ((((solver.root_-xh)*dfroot-froot)*
           ((solver.root_-xl)*dfroot-froot) > (dataType)0.0)
-        || (fabs((dataType)2.0*froot) > fabs(dxold*dfroot))) 
+        || (fabs((dataType)2.0*froot) > fabs(dxold*dfroot)))
     {
       dxold = dx;
       dx = (xh-xl)/(dataType)2.0;
       solver.root_=xl+dx;
-    } 
-    else 
+    }
+    else
     {
       dxold = dx;
       dx = froot/dfroot;
@@ -965,14 +965,14 @@ dataType modifiedDurationGpu(cashFlowsStruct cashFlows,
   int dc = y.dayCounter;
 
   int i;
-  for (i=0; i<numLegs; ++i) 
+  for (i=0; i<numLegs; ++i)
   {
-    if (!cashFlowHasOccurredGpu(cashFlows.legs[i].paymentDate, currDate)) 
+    if (!cashFlowHasOccurredGpu(cashFlows.legs[i].paymentDate, currDate))
     {
       dataType t = yearFractionGpu(npvDate,
           cashFlows.legs[i].paymentDate, dc);
-      dataType c = fixedRateCouponAmountGpu(cashFlows, i);  
-      dataType B = interestRateDiscountFactorGpu(y, t); 
+      dataType c = fixedRateCouponAmountGpu(cashFlows, i);
+      dataType B = interestRateDiscountFactorGpu(y, t);
 
       P += c * B;
       if (y.comp == SIMPLE_INTEREST)
@@ -1026,63 +1026,61 @@ long getBondsResultsGpu(inArgsStruct inArgsHost, resultsStruct resultsFromGpu, i
                           map(from: dirtyPrice[0:numBonds], \
                                     accruedAmountCurrDate[0:numBonds], \
                                     cleanPrice[0:numBonds], \
-                                    bondForwardVal[0:numBonds]) 
+                                    bondForwardVal[0:numBonds])
   {
-    struct timeval start;
-    struct timeval end;
-    gettimeofday(&start, NULL);
+    auto start = std::chrono::steady_clock::now();
 
-    #pragma omp target teams distribute parallel for thread_limit(256) 
+    #pragma omp target teams distribute parallel for thread_limit(256)
     for (int bondNum = 0; bondNum < numBonds; bondNum++)
     {
       int numLegs;
-  
+
       int numCashFlows = 0;
-  
+
       bondsDateStruct currCashflowDate = bond[bondNum].maturityDate;
-  
+
       while (currCashflowDate.dateSerialNum > bond[bondNum].startDate.dateSerialNum)
       {
         numCashFlows++;
-        currCashflowDate = advanceDateGpu(currCashflowDate, -6); 
+        currCashflowDate = advanceDateGpu(currCashflowDate, -6);
       }
-  
+
       numLegs = numCashFlows+1;
-  
-      cashFlowsStruct cashFlows; 
+
+      cashFlowsStruct cashFlows;
       couponStruct cashLegs[9];
       cashFlows.legs = cashLegs;
-  
+
       cashFlows.intRate.dayCounter = USE_EXACT_DAY;
       cashFlows.intRate.rate  = bond[bondNum].rate;
       cashFlows.intRate.freq  = ANNUAL_FREQ;
       cashFlows.intRate.comp  = SIMPLE_INTEREST;
       cashFlows.dayCounter  = USE_EXACT_DAY;
       cashFlows.nominal  = (dataType)100.0;
-  
+
       //bondsDateStruct currPaymentDate;
       bondsDateStruct currStartDate = advanceDateGpu(bond[bondNum].maturityDate, (numLegs - 1)*-6);
-      bondsDateStruct currEndDate = advanceDateGpu(currStartDate, 6); 
-  
+      bondsDateStruct currEndDate = advanceDateGpu(currStartDate, 6);
+
       int cashFlowNum;
       for (cashFlowNum = 0; cashFlowNum < numLegs-1; cashFlowNum++)
       {
         cashFlows.legs[cashFlowNum].paymentDate = currEndDate;
-  
+
         cashFlows.legs[cashFlowNum].accrualStartDate  = currStartDate;
         cashFlows.legs[cashFlowNum].accrualEndDate  = currEndDate;
-  
+
         cashFlows.legs[cashFlowNum].amount = COMPUTE_AMOUNT;
-  
+
         currStartDate = currEndDate;
-        currEndDate = advanceDateGpu(currEndDate, 6); 
+        currEndDate = advanceDateGpu(currEndDate, 6);
       }
-  
+
       cashFlows.legs[numLegs-1].paymentDate  = bond[bondNum].maturityDate;
       cashFlows.legs[numLegs-1].accrualStartDate = currDate[bondNum];
       cashFlows.legs[numLegs-1].accrualEndDate  = currDate[bondNum];
       cashFlows.legs[numLegs-1].amount = (dataType)100.0;
-  
+
       bondForwardVal[bondNum] = getBondYieldGpu(bondCleanPrice[bondNum],
           USE_EXACT_DAY,
           COMPOUNDED_INTEREST,
@@ -1090,19 +1088,19 @@ long getBondsResultsGpu(inArgsStruct inArgsHost, resultsStruct resultsFromGpu, i
           currDate[bondNum],
           ACCURACY,
           100,
-          bond, 
+          bond,
           maturityDate,
           bondNum, cashFlows, numLegs);
-  
+
       discountCurve[bondNum].forward = bondForwardVal[bondNum];
       dirtyPrice[bondNum] = getDirtyPriceGpu(bond, discountCurve, currDate, bondNum, cashFlows, numLegs);
       accruedAmountCurrDate[bondNum] = getAccruedAmountGpu(maturityDate, currDate[bondNum], bondNum, cashFlows, numLegs);
-  
+
       cleanPrice[bondNum] = dirtyPrice[bondNum] - accruedAmountCurrDate[bondNum];
     }
 
-    gettimeofday(&end, NULL);
-    ktime = (end.tv_sec - start.tv_sec) * 1e6 + end.tv_usec - start.tv_usec;
+    auto end = std::chrono::steady_clock::now();
+    ktime = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
   }
   return ktime;
 }

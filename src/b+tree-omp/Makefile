@@ -6,7 +6,7 @@ LAUNCHER  =
 
 
 # Standard flags
-CFLAGS := $(EXTRA_CFLAGS) -std=c++17 -Wall
+CFLAGS := $(EXTRA_CFLAGS) -std=c++17 -Wall -I. -I./util/num -I./kernel
 
 # Linker flags
 LDFLAGS = -lm
@@ -29,18 +29,16 @@ else
 endif
 
 
-b+tree.out:	./main.o \
+main:	./main.o \
 		./kernel/kernel_wrapper.o \
 		./kernel/kernel2_wrapper.o \
-		./util/timer/timer.o \
 		./util/num/num.o 
 	$(CC) $(CFLAGS)	./main.o \
 			./kernel/kernel_wrapper.o \
 			./kernel/kernel2_wrapper.o \
-			./util/timer/timer.o \
 			./util/num/num.o \
 			$(LDFLAGS) \
-	                -o b+tree.out
+	                -o main
 # ========================================================================================================================================================================================================200
 #	OBJECTS (COMPILE SOURCE FILES INTO OBJECTS)
 # ========================================================================================================================================================================================================200
@@ -77,14 +75,6 @@ main.o:	./common.h \
 #	UTILITIES
 # ======================================================================================================================================================150
 
-./util/timer/timer.o:	./common.h \
-	./util/timer/timer.h \
-	./util/timer/timer.c
-	$(CC)	./util/timer/timer.c \
-		-c \
-		-o ./util/timer/timer.o \
-		-O3
-
 ./util/num/num.o:	./common.h \
 	./util/num/num.h \
 	./util/num/num.c
@@ -97,8 +87,8 @@ main.o:	./common.h \
 #	END
 # ======================================================================================================================================================150
 #
-run: b+tree.out
-	$(LAUNCHER) ./b+tree.out file ../data/b+tree/mil.txt command ../data/b+tree/command.txt
+run: main
+	$(LAUNCHER) ./main file ../data/b+tree/mil.txt command ../data/b+tree/command.txt
 
 # ========================================================================================================================================================================================================200
 #	DELETE
@@ -107,6 +97,6 @@ run: b+tree.out
 clean:
 	rm -f	*.o *.out \
 		./kernel/*.o \
-		./util/timer/*.o \
 		./util/num/*.o \
-		output.txt
+		output.txt \
+		main

@@ -52,9 +52,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <time.h>
 #include <string.h>
-#include <sys/time.h>
+#include <chrono>
 #include <cuda.h>
 
 #define WARMUPS         1000
@@ -329,8 +328,6 @@ int main(int argc, char* argv[])
   t_speed* tmp_cells = NULL;    /* scratch space */
   int*     obstaclesHost = NULL;/* grid indicating which cells are blocked */
   float*   av_vels   = NULL;    /* a record of the av. velocity computed for each timestep */
-  struct timeval timstr;        /* structure to hold elapsed time */
-  double tic, toc;              /* floating point numbers to calculate elapsed wallclock time */
 
   /* parse the command line */
   if (argc != 3)
@@ -435,12 +432,12 @@ int main(int argc, char* argv[])
   dim3 grids(Nx/LOCALSIZEX, Ny/LOCALSIZEY);
   dim3 threads(LOCALSIZEX, LOCALSIZEY);
 
+  std::chrono::steady_clock::time_point tic, toc;
+
   for (int tt = 0; tt < MaxIters; tt++){
     if (tt == WARMUPS - 1) {
-      //start timer after warmup
       cudaDeviceSynchronize();
-      gettimeofday(&timstr, NULL);
-      tic = timstr.tv_sec * 1e6 + timstr.tv_usec;
+      tic = std::chrono::steady_clock::now();
     }
     d2q9_bgk<<<grids, threads>>>(
         speeds0, 
@@ -508,13 +505,12 @@ int main(int argc, char* argv[])
     tmp_speeds8 = speed_tmp;
   }
 
-  //end timer
   cudaDeviceSynchronize();
-  gettimeofday(&timstr, NULL);
-  toc = timstr.tv_sec * 1e6 + timstr.tv_usec;
+  toc = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(toc - tic).count();
   printf("After warmup for %d iterations, ", WARMUPS);
   printf("average kernel execution time over %d iterations:\t\t\t%.6lf (us)\n",
-         MaxIters - WARMUPS, (toc - tic) / (MaxIters - WARMUPS));
+         MaxIters - WARMUPS, time * 1e-3 / (MaxIters - WARMUPS));
 
   cudaMemcpy(tot_up, partial_sum, sizeof(float)*(Ny/LOCALSIZEY)*(Nx/LOCALSIZEX)*MaxIters, cudaMemcpyDeviceToHost);
   cudaMemcpy(tot_cellsp, partial_sum2, sizeof(int)*(Ny/LOCALSIZEY)*(Nx/LOCALSIZEX)*MaxIters, cudaMemcpyDeviceToHost);

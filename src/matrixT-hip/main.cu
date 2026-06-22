@@ -18,16 +18,17 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <hip/hip_runtime.h>
+#include <math.h>
 #include <chrono>
+#include <hip/hip_runtime.h>
 #include <hip/hip_cooperative_groups.h>
 
-#define checkHipErrors(call)                                                          \
-  do {                                                                                \
-    hipError_t err = call;                                                            \
-    if (err != hipSuccess) {                                                          \
-      printf("HIP error at %s %d: %s\n", __FILE__, __LINE__, hipGetErrorString(err)); \
-    }                                                                                 \
+#define checkCudaErrors(call)                                                          \
+  do {                                                                                 \
+    hipError_t err = call;                                                             \
+    if (err != hipSuccess) {                                                           \
+      printf("HIP error at %s %d: %s\n", __FILE__, __LINE__, hipGetErrorString(err));  \
+    }                                                                                  \
   } while (0)
 
 namespace cg = cooperative_groups;
@@ -188,6 +189,36 @@ __global__ void transposeNoBankConflicts(
   for (int i=0; i<TILE_DIM; i+=BLOCK_ROWS)
   {
     odata[index_out+i*height] = tile[threadIdx.x][threadIdx.y+i];
+  }
+}
+
+#define SWIZZLE(row, col) ((col) ^ (row))
+__global__ void transposeSwizzle(
+        float *__restrict__ odata,
+  const float *__restrict__ idata,
+  int width, int height)
+{
+  cg::thread_block cta = cg::this_thread_block();
+  __shared__ float tile[TILE_DIM][TILE_DIM];
+
+  int xIndex = blockIdx.x * TILE_DIM + threadIdx.x;
+  int yIndex = blockIdx.y * TILE_DIM + threadIdx.y;
+  int index_in = xIndex + (yIndex)*width;
+
+  xIndex = blockIdx.y * TILE_DIM + threadIdx.x;
+  yIndex = blockIdx.x * TILE_DIM + threadIdx.y;
+  int index_out = xIndex + (yIndex)*height;
+
+  for (int i=0; i<TILE_DIM; i+=BLOCK_ROWS) {
+    // Store at swizzled columns
+    tile[threadIdx.y + i][SWIZZLE(threadIdx.y + i, threadIdx.x)] = idata[index_in + i*width];
+  }
+
+  cg::sync(cta);
+
+  for (int i=0; i<TILE_DIM; i+=BLOCK_ROWS) {
+    // Read from swizzled columns
+    odata[index_out + i*height] = tile[threadIdx.x][SWIZZLE(threadIdx.x, threadIdx.y + i)];
   }
 }
 
@@ -389,8 +420,8 @@ int main(int argc, char **argv)
 
   // allocate device memory
   float *d_idata, *d_odata;
-  checkHipErrors(hipMalloc((void **) &d_idata, mem_size));
-  checkHipErrors(hipMalloc((void **) &d_odata, mem_size));
+  checkCudaErrors(hipMalloc((void **) &d_idata, mem_size));
+  checkCudaErrors(hipMalloc((void **) &d_odata, mem_size));
 
   // initialize host data
   for (int i = 0; i < (size_x*size_y); ++i)
@@ -399,7 +430,7 @@ int main(int argc, char **argv)
   }
 
   // copy host data to device
-  checkHipErrors(hipMemcpy(d_idata, h_idata, mem_size, hipMemcpyHostToDevice));
+  checkCudaErrors(hipMemcpy(d_idata, h_idata, mem_size, hipMemcpyHostToDevice));
 
   // Compute reference transpose solution
   computeTransposeGold(transposeGold, h_idata, size_x, size_y);
@@ -413,49 +444,54 @@ int main(int argc, char **argv)
   //
   bool success = true;
 
-  for (int k = 0; k<8; k++)
+  for (int k = 0; k<9; k++)
   {
     // set kernel pointer
     switch (k)
     {
       case 0:
         kernel = &copy;
-        kernelName = "simple copy       ";
+        kernelName = "simple memory copy  ";
         break;
 
       case 1:
         kernel = &copySharedMem;
-        kernelName = "shared memory copy";
+        kernelName = "shared memory copy  ";
         break;
 
       case 2:
-        kernel = &transposeNaive;
-        kernelName = "naive             ";
+        kernel = &transposeCoarseGrained;
+        kernelName = "coarse-grained      ";
         break;
 
       case 3:
-        kernel = &transposeCoalesced;
-        kernelName = "coalesced         ";
+        kernel = &transposeFineGrained;
+        kernelName = "fine-grained        ";
         break;
 
       case 4:
-        kernel = &transposeNoBankConflicts;
-        kernelName = "optimized         ";
+        kernel = &transposeNaive;
+        kernelName = "transpose naive     ";
         break;
 
       case 5:
-        kernel = &transposeCoarseGrained;
-        kernelName = "coarse-grained    ";
+        kernel = &transposeCoalesced;
+        kernelName = "transpose coalesced ";
         break;
 
       case 6:
-        kernel = &transposeFineGrained;
-        kernelName = "fine-grained      ";
+        kernel = &transposeNoBankConflicts;
+        kernelName = "transpose smem pad  ";
         break;
 
       case 7:
+        kernel = &transposeSwizzle;
+        kernelName = "transpose swizzle   ";
+        break;
+
+      case 8:
         kernel = &transposeDiagonal;
-        kernelName = "diagonal          ";
+        kernelName = "transpose diagonal  ";
         break;
     }
 
@@ -478,7 +514,7 @@ int main(int argc, char **argv)
 
     for (int i=0; i < repeat; i++)
     {
-      hipLaunchKernelGGL(kernel, grid, threads, 0, 0, d_odata, d_idata, size_x, size_y);
+      kernel<<<grid, threads>>>(d_odata, d_idata, size_x, size_y);
     }
 
     hipDeviceSynchronize();
@@ -486,7 +522,7 @@ int main(int argc, char **argv)
     auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
     printf("Average kernel (%s) execution time: %f (us)\n", kernelName, (time * 1e-3f) / repeat);
 
-    checkHipErrors(hipMemcpy(h_odata, d_odata, mem_size, hipMemcpyDeviceToHost));
+    checkCudaErrors(hipMemcpy(h_odata, d_odata, mem_size, hipMemcpyDeviceToHost));
  
     bool ok = true;
     for (int i = 0; i < size_x*size_y; i++)

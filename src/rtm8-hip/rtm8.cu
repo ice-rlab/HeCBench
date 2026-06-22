@@ -1,15 +1,14 @@
-#include <iostream>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <chrono>
+#include <iostream>
 #include <vector>
 #include <hip/hip_runtime.h>
 
 #define nx 680
 #define ny 134
 #define nz 450
-
-#include "mysecond.c"
 
 inline __host__ __device__ int indexTo1D(int x, int y, int z){
   return x + y*nx + z*nx*ny;
@@ -138,7 +137,7 @@ int main(int argc, char *argv[]) {
   float* image_cpu = (float*)malloc(ArraySize * sizeof(float));
 
   float a[5];
-  double pts, t0, t1, dt, flops, pt_rate, flop_rate, speedup, memory;
+  double pts, flops, pt_rate, flop_rate, speedup, memory;
 
   memory = ArraySize*sizeof(float)*6;
   pts = (double)repeat*(nx-8)*(ny-8)*(nz-8);
@@ -201,7 +200,7 @@ int main(int argc, char *argv[]) {
   dim3 blocks (groupSize, groupSize, 1);
 
   hipDeviceSynchronize();
-  t0 = mysecond();
+  auto start = std::chrono::steady_clock::now();
 
   // Launch the kernel repeatedly
   for (int t = 0; t < repeat; t++) {
@@ -210,18 +209,21 @@ int main(int argc, char *argv[]) {
   }
 
   hipDeviceSynchronize();
-  t1 = mysecond();
-  dt = t1 - t0;
+  auto end = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+  double dt = time * 1e-9;
 
   //copy back image value
   hipMemcpy(image_gpu, image_d, ArraySize * sizeof(float), hipMemcpyDeviceToHost);
 
   // CPU execution
-  t0 = mysecond();
+  start = std::chrono::steady_clock::now();
   for (int t = 0; t < repeat; t++) {
     rtm8_cpu(vsq, current_s, next_s, current_r, next_r, image_cpu, a, ArraySize);
   }
-  t1 = mysecond();
+  end = std::chrono::steady_clock::now();
+  time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+  double ht = time * 1e-9;
 
   // verification
   bool ok = true;
@@ -236,8 +238,8 @@ int main(int argc, char *argv[]) {
 
   pt_rate = pts/dt;
   flop_rate = flops/dt;
-  speedup = (t1 - t0) / dt;
-  printf("dt = %lf\n", dt);
+  speedup = ht / dt;
+  printf("dt = %lf (sec)\n", dt);
   printf("pt_rate (millions/sec) = %lf\n", pt_rate/1e6);
   printf("flop_rate (Gflops) = %lf\n", flop_rate/1e9);
   printf("speedup over cpu = %lf\n", speedup);

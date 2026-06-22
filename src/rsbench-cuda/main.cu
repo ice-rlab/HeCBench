@@ -7,7 +7,6 @@ int main(int argc, char * argv[])
 	// =====================================================================
 
 	int version = 12;
-	double start, stop;
 	
 	// Process CLI Fields
 	Input input = read_CLI( argc, argv );
@@ -27,13 +26,14 @@ int main(int argc, char * argv[])
 	center_print("INITIALIZATION", 79);
 	border_print();
 	
-	start = get_time();
+	auto start = std::chrono::steady_clock::now();
 	
 	SimulationData SD = initialize_simulation( input );
 
-	stop = get_time();
+	auto stop = std::chrono::steady_clock::now();
+        auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start).count();
 
-	printf("Initialization Complete. (%.2lf seconds)\n", stop-start);
+	printf("Initialization Complete. (%.2lf seconds)\n", time * 1e-9);
 	
 	// =====================================================================
 	// Cross Section (XS) Parallel Lookup Simulation Begins
@@ -47,7 +47,7 @@ int main(int argc, char * argv[])
 	double kernel_time;
 
 	// Run Simulation
-	start = get_time();
+	start = std::chrono::steady_clock::now();
 
 	// Run simulation
 	if( input.simulation_method == EVENT_BASED )
@@ -66,7 +66,9 @@ int main(int argc, char * argv[])
 		exit(1);
 	}
 
-	stop = get_time();
+	stop = std::chrono::steady_clock::now();
+        time = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start).count();
+        double run_time = time * 1e-9;
 
 	// Final hash step
 	vhash = vhash % 999983;
@@ -80,7 +82,7 @@ int main(int argc, char * argv[])
 	center_print("RESULTS", 79);
 	border_print();
 
-	int is_invalid = validate_and_print_results(input, stop-start, vhash, kernel_time);
+	int is_invalid = validate_and_print_results(input, run_time, vhash, kernel_time);
 
 	border_print();
 

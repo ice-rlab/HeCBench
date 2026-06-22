@@ -1,14 +1,14 @@
-#include <iostream>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <chrono>
+#include <iostream>
 #include <vector>
+#include <omp.h>
 
 #define nx 680
 #define ny 134
 #define nz 450
-
-#include "mysecond.c"
 
 inline int indexTo1D(int x, int y, int z){
   return x + y*nx + z*nx*ny;
@@ -80,9 +80,9 @@ int main(int argc, char *argv[]) {
   float* image_cpu = (float*)malloc(ArraySize * sizeof(float));
 
   float a[5];
-  double pts, t0, t1, dt, flops, pt_rate, flop_rate, speedup, memory;
+  double pts, dt, flops, pt_rate, flop_rate, speedup, memory;
 
-  memory = ArraySize*sizeof(float)*6; 
+  memory = ArraySize*sizeof(float)*6;
   pts = (double)repeat*(nx-8)*(ny-8)*(nz-8);
   flops = 67*pts;
   printf("memory (MB) = %lf\n", memory/1e6);
@@ -115,10 +115,10 @@ int main(int argc, char *argv[]) {
                           map(to: vsq[0:ArraySize]) \
                           map(alloc: next_r[0:ArraySize]) \
                           map(alloc: next_s[0:ArraySize]) \
-                          map(tofrom: image_gpu[0:ArraySize]) 
+                          map(tofrom: image_gpu[0:ArraySize])
   {
-    t0 = mysecond();
-  
+    auto start = std::chrono::steady_clock::now();
+
     for (int t = 0; t < repeat; t++) {
       #pragma omp target teams distribute parallel for collapse(3) thread_limit(256)
       for (int z = 4; z < nz - 4; z++) {
@@ -138,7 +138,7 @@ int main(int argc, char *argv[]) {
               a[4] * (current_s[indexTo1D(x+4,y,z)] + current_s[indexTo1D(x-4,y,z)] +
                   current_s[indexTo1D(x,y+4,z)] + current_s[indexTo1D(x,y-4,z)] +
                   current_s[indexTo1D(x,y,z+4)] + current_s[indexTo1D(x,y,z-4)]);
-  
+
             next_s[indexTo1D(x,y,z)] = 2*current_s[indexTo1D(x,y,z)] - next_s[indexTo1D(x,y,z)]
               + vsq[indexTo1D(x,y,z)]*div;
             div =
@@ -155,26 +155,28 @@ int main(int argc, char *argv[]) {
               a[4] * (current_r[indexTo1D(x+4,y,z)] + current_r[indexTo1D(x-4,y,z)] +
                   current_r[indexTo1D(x,y+4,z)] + current_r[indexTo1D(x,y-4,z)] +
                   current_r[indexTo1D(x,y,z+4)] + current_r[indexTo1D(x,y,z-4)]);
-  
+
             next_r[indexTo1D(x,y,z)] = 2 * current_r[indexTo1D(x,y,z)]
               - next_r[indexTo1D(x,y,z)] + vsq[indexTo1D(x,y,z)] * div;
-  
+
             image_gpu[indexTo1D(x,y,z)] = next_s[indexTo1D(x,y,z)] * next_r[indexTo1D(x,y,z)];
-  	}
+  	  }
         }
       }
     }
-  
-    t1 = mysecond();
-    dt = t1 - t0;
+    auto end = std::chrono::steady_clock::now();
+    auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    dt = time * 1e-9;
   }
 
   // CPU execution
-  t0 = mysecond();
+  auto start = std::chrono::steady_clock::now();
   for (int t = 0; t < repeat; t++) {
     rtm8_cpu(vsq, current_s, next_s, current_r, next_r, image_cpu, a, ArraySize);
   }
-  t1 = mysecond();
+  auto end = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+  double ht = time * 1e-9;
 
   // verification
   bool ok = true;
@@ -189,8 +191,8 @@ int main(int argc, char *argv[]) {
 
   pt_rate = pts/dt;
   flop_rate = flops/dt;
-  speedup = (t1 - t0) / dt;
-  printf("dt = %lf\n", dt);
+  speedup = ht / dt;
+  printf("dt = %lf (sec)\n", dt);
   printf("pt_rate (millions/sec) = %lf\n", pt_rate/1e6);
   printf("flop_rate (Gflops) = %lf\n", flop_rate/1e9);
   printf("speedup over cpu = %lf\n", speedup);

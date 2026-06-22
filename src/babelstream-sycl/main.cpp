@@ -108,7 +108,7 @@ void init_arrays(sycl::queue &q,
 
 // dc[i] = da[i] for each i
 template <typename T>
-void copy(sycl::queue &q, T *da, T *dc)
+void copy(sycl::queue &q, const T *da, T *dc)
 {
   const int array_size = ARRAY_SIZE;
   sycl::range<1> gws (array_size);
@@ -125,7 +125,7 @@ void copy(sycl::queue &q, T *da, T *dc)
 
 // db[i] = scalar * dc[i] for each i
 template <typename T>
-void mul(sycl::queue &q, T *db, T *dc)
+void mul(sycl::queue &q, T *db, const T *dc)
 {
   const int array_size = ARRAY_SIZE;
   sycl::range<1> gws (array_size);
@@ -143,7 +143,7 @@ void mul(sycl::queue &q, T *db, T *dc)
 
 // dc[i] = da[i] + db[i] for each i
 template <typename T>
-void add(sycl::queue &q, T *da, T *db, T *dc)
+void add(sycl::queue &q, const T *da, const T *db, T *dc)
 {
   const int array_size = ARRAY_SIZE;
   sycl::range<1> gws (array_size);
@@ -159,7 +159,7 @@ void add(sycl::queue &q, T *da, T *db, T *dc)
 
 // da[i] = db[i] + scalar * dc[i] for each i
 template <typename T>
-void triad(sycl::queue &q, T *da, T *db, T *dc)
+void triad(sycl::queue &q, T *da, const T *db, const T *dc)
 {
   const int array_size = ARRAY_SIZE;
   sycl::range<1> gws (array_size);
@@ -177,7 +177,7 @@ void triad(sycl::queue &q, T *da, T *db, T *dc)
 
 // da[i] += db[i] + scalar * dc[i] for each i
 template <typename T>
-void nstream(sycl::queue &q, T *da, T *db, T *dc)
+void nstream(sycl::queue &q, T *da, const T *db, const T *dc)
 {
   const int array_size = ARRAY_SIZE;
   sycl::range<1> gws (array_size);
@@ -193,45 +193,24 @@ void nstream(sycl::queue &q, T *da, T *db, T *dc)
 
 // sum += da[i] * db[i] for each i
 template <typename T>
-T dot(sycl::queue &q, T *da, T *db, T *dsum, T *sums)
+T dot(sycl::queue &q, const T *da, const T *db, T *dsum)
 {
-  const int array_size = ARRAY_SIZE;
-  sycl::range<1> gws (DOT_NUM_BLOCKS * TBSIZE);
-  sycl::range<1> lws (TBSIZE);
+  // https://github.com/UoB-HPC/BabelStream/blob/main/src/sycl2020/SYCLStream2020.cpp
   q.submit([&] (sycl::handler &cgh) {
-    sycl::local_accessor<T, 1> tb_sum(sycl::range<1>(TBSIZE), cgh);
-    cgh.parallel_for<class dot_kernel<T>>(
-      sycl::nd_range<1>(gws, lws), [=] (sycl::nd_item<1> item) {
-      const size_t lid = item.get_local_id(0);
-      const int blockIdx = item.get_group(0);
-      const int blockDim = item.get_local_range(0);
-      const int gridDim = item.get_group_range(0);
-
-      tb_sum[lid] = 0.0;
-      for (int i = item.get_global_id(0);
-           i < array_size; i += blockDim * gridDim)
-        tb_sum[lid] += da[i] * db[i];
-
-      for (int offset = blockDim / 2; offset > 0; offset /= 2)
-      {
-        item.barrier(sycl::access::fence_space::local_space);
-        if (lid < offset)
-        {
-          tb_sum[lid] += tb_sum[lid+offset];
-        }
-      }
-
-      if (lid == 0)
-        dsum[blockIdx] = tb_sum[lid];
+    const int array_size = ARRAY_SIZE;
+    cgh.parallel_for<class dot_kernel<T>>(sycl::range<1>(array_size),
+    // Reduction object, to perform summation - initialises the result to zero
+    #if defined(__HIPSYCL__) || defined(__OPENSYCL__) || defined(__ADAPTIVECPP__)
+    sycl::reduction(dsum, sycl::plus<T>()),
+    #else
+    sycl::reduction(dsum, sycl::plus<T>(), sycl::property::reduction::initialize_to_identity{}),
+    #endif
+    [a=da,b=db](sycl::id<1> idx, auto& sum) {
+      sum += a[idx] * b[idx];
     });
   });
-
-  // sum up partial sums on a host
-  q.memcpy(sums, dsum, DOT_NUM_BLOCKS * sizeof(T)).wait();  
-
-  T sum = 0.0;
-  for (int i = 0; i < DOT_NUM_BLOCKS; i++)
-    sum += sums[i];
+  T sum;
+  q.memcpy(&sum, dsum, sizeof(T)).wait();
   return sum;
 }
 
@@ -261,10 +240,7 @@ void run()
   T *da = sycl::malloc_device<T>(ARRAY_SIZE, q);
   T *db = sycl::malloc_device<T>(ARRAY_SIZE, q);
   T *dc = sycl::malloc_device<T>(ARRAY_SIZE, q);
-  T *dsum = sycl::malloc_device<T>(DOT_NUM_BLOCKS, q);
-
-  // Allocate the host array for partial sums for the dot kernel
-  T *sums = (T*)malloc(sizeof(T) * DOT_NUM_BLOCKS);
+  T *dsum = sycl::malloc_device<T>(1, q);
 
   if (sizeof(T) == sizeof(float))
     std::cout << "Precision: float" << std::endl;
@@ -281,6 +257,43 @@ void run()
 
   // Initialize device arrays
   init_arrays(q, da, db, dc, (T)0.1, (T)0.2, T(0.0));
+
+  // simulation-based validation
+  std::vector<T> ha (ARRAY_SIZE, (T)0.1);
+  std::vector<T> hb (ARRAY_SIZE, (T)0.2);
+  std::vector<T> hc (ARRAY_SIZE);
+  std::vector<T> hd (ARRAY_SIZE); // nstream result
+
+  copy(q, da, dc); // c = a
+  mul(q, db, dc);  // b = c * scalar
+  add(q, da, db, dc); // c = a + b
+  triad(q, da, db, dc); // a = b + scalar * c
+  T sum_d = dot(q, da, db, dsum); // s = dot(a * b)
+  nstream(q, da, db, dc); //  a += b + scalar * c
+
+  for (int i = 0; i < ARRAY_SIZE; i++) {
+    hc[i] = ha[i];
+    hb[i] = hc[i] * SCALAR;
+    hc[i] = ha[i] + hb[i];
+    ha[i] = hb[i] + SCALAR * hc[i];
+  }
+  double sum_r = 0;
+  for (int i = 0; i < ARRAY_SIZE; i++) sum_r += ha[i] * hb[i]; 
+  for (int i = 0; i < ARRAY_SIZE; i++) ha[i] += hb[i] + SCALAR * hc[i];
+  q.memcpy(hd.data(), da, sizeof(T) * ARRAY_SIZE).wait();
+  bool ok = true;
+  if (std::fabs(sum_r - sum_d) >= 1) {
+    std::cout << "dot: " << sum_r << " " << sum_d << std::endl;
+    ok = false;
+  }
+  for (int i = 0; i < ARRAY_SIZE; i++) {
+    if (std::fabs(hd[i] - ha[i]) > 1e-3) {
+      std::cout << "a: " << hd[i] << " " << ha[i] << std::endl;
+      ok = false;
+      break;
+    }
+  }
+  printf("%s\n", ok ? "PASS": "FAIL");
 
   // List of times
   std::vector<std::vector<double>> timings(6);
@@ -317,7 +330,7 @@ void run()
 
     // Execute Dot
     t1 = std::chrono::high_resolution_clock::now();
-    dot(q, da, db, dsum, sums);
+    dot(q, da, db, dsum);
     t2 = std::chrono::high_resolution_clock::now();
     timings[4].push_back(std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1).count());
 
@@ -371,11 +384,10 @@ void run()
   // Add a blank line
   std::cout << std::endl;
 
-  free(da, q);
-  free(db, q);
-  free(dc, q);
-  free(dsum, q);
-  free(sums);
+  sycl::free(da, q);
+  sycl::free(db, q);
+  sycl::free(dc, q);
+  sycl::free(dsum, q);
 }
 
 

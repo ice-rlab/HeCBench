@@ -24,7 +24,7 @@ obj = $(source:.cpp=.o)
 #===============================================================================
 
 # Standard Flags
-CFLAGS := $(EXTRA_CFLAGS) -std=c++11 -Wall
+CFLAGS := $(EXTRA_CFLAGS) -std=c++17 -Wall -I../thomas-cuda
 
 # Linker Flags
 LDFLAGS = 
@@ -52,7 +52,7 @@ endif
 $(program): $(obj)
 	$(CC) $(CFLAGS) $(obj) -o $@ $(LDFLAGS)
 
-%.o: %.cpp ThomasMatrix.hpp utils.hpp
+%.o: %.cpp ../thomas-cuda/ThomasMatrix.hpp ../thomas-cuda/utils.hpp
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:

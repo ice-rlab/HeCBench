@@ -148,7 +148,7 @@ int main(int argc, char const *argv[])
     start = std::chrono::steady_clock::now();
 
     for (int n = 0; n < repeat; n++) {
-      #pragma omp target teams distribute parallel for thread_limit(BlockSize) nowait
+      #pragma omp target teams distribute parallel for thread_limit(BlockSize)
       for (int tid = 0; tid < N; tid++) {
         int first = tid;
         int last  = N*(M-1)+tid;

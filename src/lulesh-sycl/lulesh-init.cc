@@ -305,7 +305,7 @@ void
 Domain::SetupCommBuffers(Int_t edgeNodes)
 {
   // allocate a buffer large enough for nodal ghost data 
-  Index_t maxEdgeSize = MAX(this->sizeX(), MAX(this->sizeY(), this->sizeZ()))+1 ;
+  Index_t maxEdgeSize = std::max(this->sizeX(), std::max(this->sizeY(), this->sizeZ()))+1 ;
   m_maxPlaneSize = CACHE_ALIGN_REAL(maxEdgeSize*maxEdgeSize) ;
   m_maxEdgeSize = CACHE_ALIGN_REAL(maxEdgeSize) ;
 

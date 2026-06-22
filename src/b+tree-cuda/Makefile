@@ -32,17 +32,15 @@ ifeq ($(OPTIMIZE),yes)
 
 endif
 
-b+tree.out:	./main.o \
+main:	./main.o \
 		./kernel/kernel_wrapper.o \
 		./kernel/kernel2_wrapper.o \
-		./util/timer/timer.o \
 		./util/num/num.o 
 	$(CC)	$(CFLAGS) ./main.o \
 			./kernel/kernel_wrapper.o \
 			./kernel/kernel2_wrapper.o \
-			./util/timer/timer.o \
 			./util/num/num.o \
-			-lm  -o b+tree.out
+			-lm  -o main
 
 
 
@@ -63,19 +61,16 @@ main.o:	./common.h ./main.h ./main.cu
 #	UTILITIES
 # ======================================================================================================================================================150
 
-./util/timer/timer.o:	./common.h ./util/timer/timer.h ./util/timer/timer.c
-	$(CC)	./util/timer/timer.c -c -o ./util/timer/timer.o 
-
 ./util/num/num.o:	./common.h ./util/num/num.h ./util/num/num.c
 	$(CC)	./util/num/num.c -c -o ./util/num/num.o 
 
-run: b+tree.out
-	$(LAUNCHER) ./b+tree.out file ../data/b+tree/mil.txt command ../data/b+tree/command.txt
+run: main
+	$(LAUNCHER) ./main file ../data/b+tree/mil.txt command ../data/b+tree/command.txt
 
 clean:
 	rm	-rf *.o *.out \
 		./kernel/*.o \
-		./util/timer/*.o \
 		./util/num/*.o \
-    output.txt
+		output.txt \
+		main
 

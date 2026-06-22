@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <sys/time.h>
 #include <string.h>
+#include <chrono>
 #include <hip/hip_runtime.h>
 #include "utils.h"
 #include "utils.cu"
@@ -229,10 +229,10 @@ int main( int argc, char** argv )
   hipMalloc((void**)&d_vslocal, n );
 
   // measure host and device execution time
-  double ktime = 0.0;
-  double k_start, k_end;
+  long ktime = 0;
+  std::chrono::steady_clock::time_point kstart, kend;
 
-  double t1 = get_time();
+  auto t1 = std::chrono::steady_clock::now();
 
   for(int iteration=0; iteration<niterations; ++iteration )
   {
@@ -300,11 +300,11 @@ int main( int argc, char** argv )
 
       if (is_first_step) {
         
-        k_start = get_time();
+        kstart = std::chrono::steady_clock::now();
 
         hipMemset(d_vo, 0, v_size);  // must reset output for each iteration
 
-        hipLaunchKernelGGL(init_facexy, xy_grid, xy_block, 0, 0,  
+        init_facexy<<<xy_grid, xy_block>>>( 
           ix_base, iy_base, dims_b_ne, dims_b_na, dims_b_ncell_x, 
           dims_b_ncell_y, dims_b_ncell_z, dims_ncell_z, d_facexy);
 
@@ -315,7 +315,7 @@ int main( int argc, char** argv )
 #endif
       }
 
-      hipLaunchKernelGGL(init_facexz, xz_grid, xz_block, 0, 0, 
+      init_facexz<<<xz_grid, xz_block>>>(
           ix_base, iy_base, dims_b_ne, dims_b_na, 
           dims_b_ncell_x, dims_b_ncell_y, dims_ncell_z, 
           1, //proc_x_min, 
@@ -328,7 +328,7 @@ int main( int argc, char** argv )
         printf("facexz: %d %f\n", i, facexz[i]);
 #endif
 
-      hipLaunchKernelGGL(init_faceyz, yz_grid, yz_block, 0, 0, 
+      init_faceyz<<<yz_grid, yz_block>>>(
           ix_base, iy_base, dims_b_ne, dims_b_na, 
           dims_b_ncell_x, dims_b_ncell_y, dims_ncell_z, 
           1, //proc_y_min, 
@@ -341,7 +341,7 @@ int main( int argc, char** argv )
         printf("faceyz: %d %f\n", i, faceyz[i]);
 #endif
 
-      hipLaunchKernelGGL(wavefronts, wave_grid, wave_block, 0, 0, 
+      wavefronts<<<wave_grid, wave_block>>>(
           num_wavefronts,  
           ix_base, iy_base, 
           v_b_size,
@@ -360,8 +360,8 @@ int main( int argc, char** argv )
       if (is_last_step) { 
 
         hipDeviceSynchronize();
-        k_end = get_time();
-        ktime += k_end - k_start;
+        kend = std::chrono::steady_clock::now();
+        ktime += std::chrono::duration_cast<std::chrono::nanoseconds>(kend - kstart).count();
 
         hipMemcpy(vo, d_vo, v_size, hipMemcpyDeviceToHost);
 #ifdef DEBUG
@@ -374,8 +374,8 @@ int main( int argc, char** argv )
     vo = vi;
     vi = tmp;
   }
-  double t2 = get_time();
-  double time = t2 - t1;
+  auto t2 = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count();
 
   // Verification (input and output vectors are equal) 
   P normsq = (P)0;
@@ -390,14 +390,14 @@ int main( int argc, char** argv )
       * Quantities_flops_per_solve( dims )
       + Dimensions_size_state( dims, NU ) * NOCTANT * 2. * dims.na );
 
-  double floprate_h = (time <= 0) ?  0 : flops / (time * 1e-6) / 1e9;
-  double floprate_d = (ktime <= 0) ?  0 : flops / (ktime * 1e-6) / 1e9;
+  double floprate_h = (time <= 0) ?  0 : flops / time;
+  double floprate_d = (ktime <= 0) ?  0 : flops / ktime;
 
   printf( "Normsq result: %.8e  diff: %.3e  verify: %s  host time: %.3f (s) kernel time: %.3f (s)\n",
           normsq,
           normsqdiff,
           normsqdiff== (P)0 ? "PASS" : "FAIL",
-          time * 1e-6, ktime * 1e-6);
+          time * 1e-9, ktime * 1e-9);
 
   printf( "GF/s (host): %.3f\nGF/s (device): %.3f\n", floprate_h, floprate_d );
 

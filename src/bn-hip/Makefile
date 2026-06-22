@@ -23,7 +23,7 @@ obj = $(source:.cu=.o)
 #===============================================================================
 
 # Standard Flags
-CFLAGS := $(EXTRA_CFLAGS) -std=c++17 -Wall
+CFLAGS := $(EXTRA_CFLAGS) -std=c++17 -fopenmp -Wall -I../bn-cuda
 
 # Linker Flags
 LDFLAGS = 
@@ -47,7 +47,7 @@ endif
 $(program): $(obj)
 	$(CC) $(CFLAGS) $(obj) -o $@ $(LDFLAGS)
 
-%.o: %.cu kernels.cu data45.h
+%.o: %.cu ../bn-cuda/kernels.h ../bn-cuda/reference.h data45.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:

@@ -46,7 +46,7 @@ endif
 $(program): $(obj) 
 	$(CC) $(CFLAGS) $(obj) -o $@ $(LDFLAGS)
 
-%.o: %.cu support/common.h support/timer.h support/verify.h
+%.o: %.cu support/common.h support/verify.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:

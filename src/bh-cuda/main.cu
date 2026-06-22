@@ -42,7 +42,7 @@ Emerald Edition, pp. 75-92. January 2011.
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
-#include <sys/time.h>
+#include <chrono>
 #include <cuda.h>
 
 // threads per block
@@ -576,7 +576,7 @@ void ForceCalculationKernel(
 
   diff = threadIdx.x - sbase;
   // make multiple copies to avoid index calculations later
-  if (diff < MAXDEPTH) {
+  if ((base > 0) && (diff < MAXDEPTH)) {
     dq[diff+j] = dq[diff];
   }
   __syncthreads();
@@ -597,11 +597,13 @@ void ForceCalculationKernel(
       pos[j] = 0;
       node[j] = nnodesd * 8;
     }
+    __syncwarp();
 
     do {
       // stack is not empty
       pd = pos[depth];
       nd = node[depth];
+      __syncwarp();
       while (pd < 8) {
         // node on top of stack has more children to process
         n = childd[nd + pd];  // load child pointer
@@ -635,6 +637,7 @@ void ForceCalculationKernel(
         }
       }
       depth--;  // done with this level
+      __syncwarp();
     } while (depth >= j);
 
     float4 acc = accVeld[i];
@@ -751,7 +754,6 @@ int main(int argc, char* argv[])
 
   int i;
   int nnodes, step;
-  double runtime;
   float dtime, dthf, epssq, itolsq;
 
   float4 *accVel;
@@ -885,8 +887,7 @@ int main(int argc, char* argv[])
 
   cudaDeviceSynchronize();
 
-  struct timeval starttime, endtime;
-  gettimeofday(&starttime, NULL);
+  auto starttime = std::chrono::steady_clock::now();
 
   // run timesteps (launch kernels on a device)
   InitializationKernel<<<1, 1>>>(d_step, d_blkcnt);
@@ -918,11 +919,9 @@ int main(int argc, char* argv[])
   }
   cudaDeviceSynchronize();
 
-  gettimeofday(&endtime, NULL);
-  runtime = (endtime.tv_sec + endtime.tv_usec/1000000.0 - 
-             starttime.tv_sec - starttime.tv_usec/1000000.0);
-
-  printf("Total kernel execution time: %.4lf s\n", runtime);
+  auto endtime = std::chrono::steady_clock::now();
+  auto runtime = std::chrono::duration_cast<std::chrono::nanoseconds>(endtime - starttime).count();
+  printf("Total kernel execution time: %.4lf s\n", runtime * 1e-9);
 
   // transfer final results back to a host
   if (cudaSuccess != cudaMemcpy(accVel, d_accVel, sizeof(float4) * nbodies, cudaMemcpyDeviceToHost))

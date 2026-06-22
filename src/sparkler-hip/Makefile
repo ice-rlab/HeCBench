@@ -1,16 +1,18 @@
 #===============================================================================
 # User Options
 #===============================================================================
-MPI_ROOT=$(HOME)/openmpi-4.1.0-install/
-HIPBLAS_ROOT=/opt/rocm/hipblas
-HIPRT_ROOT=/opt/rocm/hip
+
+MPI_ROOT     ?= /usr/lib/x86_64-linux-gnu/openmpi
+ROCM_PATH    ?= /opt/rocm
+HIPBLAS_ROOT ?= $(ROCM_PATH)
+HIPRT_ROOT   ?= $(ROCM_PATH)
 
 # Compiler can be set below, or via environment variable
 CC        = hipcc
-LD        = $(MPI_ROOT)/bin/mpiCC
+LD        = mpiCC
 OPTIMIZE  = yes
 DEBUG     = no
-LAUNCHER  =
+LAUNCHER ?=
 
 #===============================================================================
 # Program name & source code list
@@ -28,11 +30,10 @@ obj = $(source:.cu=.o)
 
 # Standard Flags
 CFLAGS := $(EXTRA_CFLAGS) -I$(MPI_ROOT)/include -std=c++17 -Wall -fPIE \
-          -I/opt/rocm/include/hipblas
+          -I$(ROCM_PATH)/include/hipblas
 
 # Linker Flags
-LDFLAGS = -L$(HIPBLAS_ROOT)/lib -lhipblas \
-	  -L$(HIPRT_ROOT)/lib -lamdhip64 
+LDFLAGS = -L$(HIPBLAS_ROOT)/lib -lhipblas -L$(HIPRT_ROOT)/lib -lamdhip64 
 
 # Debug Flags
 ifeq ($(DEBUG),yes)
@@ -59,4 +60,4 @@ clean:
 	rm -rf $(program) $(obj)
 
 run: $(program)
-	$(LAUNCHER) $(MPI_ROOT)/bin/mpirun -n 4 ./$(program) --num_vector 4000 --num_field 90000 --num_iterations 10
+	$(LAUNCHER) mpirun -n 4 ./$(program) --num_vector 4000 --num_field 90000 --num_iterations 10

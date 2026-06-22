@@ -2,12 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
-#include <math.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <float.h>
-#include <time.h>
-#include <sys/time.h>
+#include <math.h>
+#include <chrono>
 #include <omp.h>
 
 #define BLOCK_X 16
@@ -18,7 +15,7 @@
 #define M INT_MAX
 #define SCALE_FACTOR 300.0f
 
-#ifndef BLOCK_SIZE 
+#ifndef BLOCK_SIZE
 #define BLOCK_SIZE 256
 #endif
 
@@ -39,18 +36,6 @@
 #ifndef FLT_MAX
 #define FLT_MAX 3.40282347e+38
 #endif
-
-// returns a long int representing the time
-long long get_time() {
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  return (tv.tv_sec * 1000000) + tv.tv_usec;
-}
-
-// Returns the number of seconds elapsed between the two specified times
-float elapsed_time(long long start_time, long long end_time) {
-  return (float) (end_time - start_time) / (1000 * 1000);
-}
 
 /**
  * Generates a uniformly distributed random number using the provided seed and GCC's settings for the Linear Congruential Generator (LCG)
@@ -371,8 +356,7 @@ int particleFilter(unsigned char * I, int IszX, int IszY, int Nfr, int * seed, i
     yj[x] = ye;
   }
 
-  long long offload_start = get_time();
-
+  auto start = std::chrono::steady_clock::now();
 
   int k;
 
@@ -396,7 +380,7 @@ int particleFilter(unsigned char * I, int IszX, int IszY, int Nfr, int * seed, i
           I[0:IszX * IszY * Nfr], \
           objxy[0:2*countOnes])
   {
-    long long start = get_time();
+    auto kstart = std::chrono::steady_clock::now();
 
     for (k = 1; k < Nfr; k++) {
       /****************** L I K E L I H O O D ************************************/
@@ -416,7 +400,7 @@ int particleFilter(unsigned char * I, int IszX, int IszY, int Nfr, int * seed, i
           if(i < Nparticles){
             arrayX[i] = xj[i];
             arrayY[i] = yj[i];
-            weights[i] = 1.0f / ((float) (Nparticles)); 
+            weights[i] = 1.0f / ((float) (Nparticles));
             seed[i] = (A*seed[i] + C) % M;
             u = fabsf(seed[i]/((float)M));
             seed[i] = (A*seed[i] + C) % M;
@@ -496,7 +480,7 @@ int particleFilter(unsigned char * I, int IszX, int IszY, int Nfr, int * seed, i
       #pragma omp target teams num_teams(num_blocks) thread_limit(BLOCK_SIZE)
       {
         float u1;
-        float sumWeights; 
+        float sumWeights;
         #pragma omp parallel
         {
           int local_id = omp_get_thread_num();
@@ -520,7 +504,7 @@ int particleFilter(unsigned char * I, int IszX, int IszY, int Nfr, int * seed, i
             float p = fabsf(seed[i]/((float)M));
             seed[i] = (A*seed[i] + C) % M;
             float q = fabsf(seed[i]/((float)M));
-            u[0] = (1.0f/((float)(Nparticles))) * 
+            u[0] = (1.0f/((float)(Nparticles))) *
               (sqrtf(-2.0f*logf(p))*cosf(2.0f*PI*q));
             // do this to allow all threads in all blocks to use the same u1
           }
@@ -580,14 +564,14 @@ int particleFilter(unsigned char * I, int IszX, int IszY, int Nfr, int * seed, i
       }
     }//end loop
 
-    long long end = get_time();
-    printf("Average execution time of kernels: %f (s)\n",
-           elapsed_time(start, end) / (Nfr-1));
+    auto kend = std::chrono::steady_clock::now();
+    auto ktime = std::chrono::duration_cast<std::chrono::nanoseconds>(kend - kstart).count();
+    printf("Average execution time of kernels: %f (s)\n", ktime * 1e-9 / (Nfr-1));
+  } // #pragma
 
-  } // #pragma 
-
-  long long offload_end = get_time();
-  printf("Device offloading time: %lf (s)\n", elapsed_time(offload_start, offload_end));
+  auto end = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+  printf("Device offloading time: %f (s)\n", time * 1e-9);
 
   xe = 0;
   ye = 0;
@@ -684,7 +668,7 @@ int main(int argc, char * argv[]) {
   }
 
 #ifdef DEBUG
-  printf("dimX=%d dimY=%d Nfr=%d Nparticles=%d\n", 
+  printf("dimX=%d dimY=%d Nfr=%d Nparticles=%d\n",
       IszX, IszY, Nfr, Nparticles);
 #endif
 
@@ -696,19 +680,21 @@ int main(int argc, char * argv[]) {
 
   //calloc matrix
   unsigned char * I = (unsigned char *) calloc(IszX * IszY * Nfr, sizeof(unsigned char));
-  long long start = get_time();
+  auto start = std::chrono::steady_clock::now();
 
   //call video sequence
   videoSequence(I, IszX, IszY, Nfr, seed);
-  long long endVideoSequence = get_time();
-  printf("VIDEO SEQUENCE TOOK %f (s)\n", elapsed_time(start, endVideoSequence));
+  auto stop = std::chrono::steady_clock::now();
 
   //call particle filter
   particleFilter(I, IszX, IszY, Nfr, seed, Nparticles);
-  long long endParticleFilter = get_time();
-  printf("PARTICLE FILTER TOOK %f (s)\n", elapsed_time(endVideoSequence, endParticleFilter));
+  auto end = std::chrono::steady_clock::now();
 
-  printf("ENTIRE PROGRAM TOOK %f (s)\n", elapsed_time(start, endParticleFilter));
+  auto vs_time = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start).count();
+  auto pf_time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - stop).count();
+
+  printf("VIDEO SEQUENCE TOOK %f (s)\n", vs_time * 1e-9);
+  printf("PARTICLE FILTER TOOK %f (s)\n", pf_time * 1e-9);
 
   free(seed);
   free(I);

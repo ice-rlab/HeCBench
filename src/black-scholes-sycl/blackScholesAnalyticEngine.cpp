@@ -3,8 +3,7 @@
 
 #include <stdio.h>
 #include <math.h>
-#include <sys/time.h>
-#include <time.h>
+#include <chrono>
 #include <sycl/sycl.hpp>
 
 #define NUM_DIFF_SETTINGS 37
@@ -223,10 +222,8 @@ void runBlackScholesAnalyticEngine(const int repeat)
     float* outputVals = (float*)malloc(numVals * sizeof(float));
 
     printf("Number of options: %d\n\n", numVals);
-    long seconds, useconds, kseconds, kuseconds;
-    float mtimeCpu, mtimeGpu, ktimeGpu;
-    struct timeval start;
-    gettimeofday(&start, NULL);
+
+    auto start = std::chrono::steady_clock::now();
 
 #ifdef USE_GPU
     sycl::queue q(sycl::gpu_selector_v, sycl::property::queue::in_order());
@@ -242,12 +239,11 @@ void runBlackScholesAnalyticEngine(const int repeat)
     q.memcpy(optionsGpu, values, numVals * sizeof(optionInputStruct)).wait();
 
     // setup execution parameters
-    sycl::range<1> gws ((numVals + THREAD_BLOCK_SIZE - 1) / 
+    sycl::range<1> gws ((numVals + THREAD_BLOCK_SIZE - 1) /
                         THREAD_BLOCK_SIZE * THREAD_BLOCK_SIZE);
     sycl::range<1> lws (THREAD_BLOCK_SIZE);
 
-    struct timeval kstart;
-    gettimeofday(&kstart, NULL);
+    auto kstart = std::chrono::steady_clock::now();
 
     for (int i = 0; i < repeat; i++) {
       q.submit([&](sycl::handler& cgh) {
@@ -285,12 +281,12 @@ void runBlackScholesAnalyticEngine(const int repeat)
             optionStruct currOption;
             currOption.payoff = currPayoff;
             currOption.yearFractionTime = threadOption.t;
-            currOption.pricingEngine = stochProcess; 
+            currOption.pricingEngine = stochProcess;
 
             float variance = getBlackVolBlackVar(currOption.pricingEngine.blackVolTS);
             float dividendDiscount = getDiscountOnDividendYield(currOption.yearFractionTime, currOption.pricingEngine.dividendTS);
             float riskFreeDiscount = getDiscountOnRiskFreeRate(currOption.yearFractionTime, currOption.pricingEngine.riskFreeTS);
-            float spot = currOption.pricingEngine.x0; 
+            float spot = currOption.pricingEngine.x0;
 
             float forwardPrice = spot * dividendDiscount / riskFreeDiscount;
 
@@ -311,29 +307,22 @@ void runBlackScholesAnalyticEngine(const int repeat)
     }
     q.wait();
 
-    struct timeval kend;
-    gettimeofday(&kend, NULL);
-    kseconds  = kend.tv_sec  - kstart.tv_sec;
-    kuseconds = kend.tv_usec - kstart.tv_usec;
-    ktimeGpu = ((kseconds) * 1000 + ((float)kuseconds)/1000.0) + 0.5f;
+    auto kend = std::chrono::steady_clock::now();
+    double ktimeGpu = std::chrono::duration_cast<std::chrono::nanoseconds>(kend - kstart).count();
 
     q.memcpy(outputVals, outputValsGpu, numVals * sizeof(float)).wait();
 
     sycl::free(optionsGpu, q);
     sycl::free(outputValsGpu, q);
 
-    struct timeval end;
-    gettimeofday(&end, NULL);
-
-    seconds  = end.tv_sec  - start.tv_sec;
-    useconds = end.tv_usec - start.tv_usec;
-
-    mtimeGpu = ((seconds) * 1000 + ((float)useconds)/1000.0) + 0.5f;
+    auto end = std::chrono::steady_clock::now();
+    double mtimeGpu = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
 
     printf("Run on GPU\n");
-    printf("Average kernel execution time on GPU: %f (ms)\n", ktimeGpu / repeat);
+    double avg_ktimeGpu = ktimeGpu * 1e-6 / repeat;
+    printf("Average kernel execution time on GPU: %f (ms)\n", avg_ktimeGpu);
 
-    mtimeGpu -= ktimeGpu + ktimeGpu / repeat;
+    mtimeGpu = (mtimeGpu - ktimeGpu) * 1e-6 + avg_ktimeGpu;
     printf("Processing time on GPU: %f (ms)\n", mtimeGpu);
 
     float totResult = 0.0f;
@@ -345,17 +334,18 @@ void runBlackScholesAnalyticEngine(const int repeat)
     printf("Output price at index %d on GPU: %f\n\n", numVals/2, outputVals[numVals/2]);
 
     //run on CPU
-    gettimeofday(&start, NULL);
+    start = std::chrono::steady_clock::now();
     for (int numOption=0; numOption < numVals; numOption++)
     {
-      getOutValOptionCpu(values, outputVals, numOption, numVals);  
+      getOutValOptionCpu(values, outputVals, numOption, numVals);
     }
-    gettimeofday(&end, NULL);
-    seconds  = end.tv_sec  - start.tv_sec;
-    useconds = end.tv_usec - start.tv_usec;
-    mtimeCpu = ((seconds) * 1000 + ((float)useconds)/1000.0) + 0.5f;
+    end = std::chrono::steady_clock::now();
+    double mtimeCpu = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    mtimeCpu = mtimeCpu * 1e-6;
+
     printf("Run on CPU\n");
     printf("Processing time on CPU: %f (ms)\n", mtimeCpu);
+
     totResult = 0.0f;
     for (int i=0; i<numVals; i++)
     {
@@ -372,7 +362,7 @@ void runBlackScholesAnalyticEngine(const int repeat)
   }
 }
 
-int main( int argc, char** argv) 
+int main( int argc, char** argv)
 {
   if (argc != 2) {
     printf("Usage: %s <repeat>\n", argv[0]);

@@ -11,7 +11,7 @@ LAUNCHER    =
 #===============================================================================
 # Program name & source code list
 #===============================================================================
-program = srad
+program = main
 
 source = main.cu
 
@@ -46,14 +46,14 @@ endif
 $(program): $(obj) Makefile
 	$(CC) $(CFLAGS) $(obj) -o $@ $(LDFLAGS)
 
-%.o: %.cu graphics.c resize.c timer.c \
+%.o: %.cu graphics.c resize.c \
 	extract_kernel.cu prepare_kernel.cu \
 	reduce_kernel.cu srad_kernel.cu srad2_kernel.cu compress_kernel.cu
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # delete all object files
 clean:
-	rm -f *.o srad *pgm
+	rm -f *.o *pgm $(program)
 
 run: $(program)
 	$(LAUNCHER) ./$(program) 1000 0.5 502 458

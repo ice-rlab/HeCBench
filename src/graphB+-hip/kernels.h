@@ -1,6 +1,5 @@
 static const int Device = 0;
 static const int ThreadsPerBlock = 256;
-static const int warpsize = 32;
 static __device__ unsigned long long hi = 0;
 static __device__ int wSize = 0;
 
@@ -275,34 +274,34 @@ static __global__ void generateSpanningTree(
   const int* const __restrict__ nlist,
   const int seed,
   EdgeInfo* const einfo,
-  volatile int* const parent,
+  int* const parent,
   int* const queue,
   const int level,
   int* const tail,
   int start,
   int end)
 {
-  const int from = (threadIdx.x + blockIdx.x * ThreadsPerBlock) / warpsize;
-  const int incr = (gridDim.x * ThreadsPerBlock) / warpsize;
-  const int lane = threadIdx.x % warpsize;
+  const int from = (threadIdx.x + blockIdx.x * ThreadsPerBlock) / warpSize;
+  const int incr = (gridDim.x * ThreadsPerBlock) / warpSize;
+  const int lane = threadIdx.x % warpSize;
   const int seed2 = seed * seed + seed;
   const int bit = (level & 1) | 2;
 
   for (int i = start + from; i < end; i += incr) {
     const int node = queue[i];
     const int me = (node << 2) | bit;
-    if (lane == 0) atomicAnd((int*)&parent[node], ~3);
-    for (int j = nindex[node + 1] - 1 - lane; j >= nindex[node]; j -= warpsize) {  // reverse order on purpose
+    if (lane == 0) atomicAnd(&parent[node], ~3);
+    for (int j = nindex[node + 1] - 1 - lane; j >= nindex[node]; j -= warpSize) {  // reverse order on purpose
       const int neighbor = nlist[j] >> 1;
       const int seed3 = neighbor ^ seed2;
       const int hash_me = hash(me ^ seed3);
       int val, hash_val;
       do {  // pick parent deterministically
-          val = parent[neighbor];
+          val = __atomic_load_n(&parent[neighbor], __ATOMIC_RELAXED);
           hash_val = hash(val ^ seed3);
         } while (((val < 0) || (((val & 3) == bit) && ((hash_val < hash_me) || 
                  ((hash_val == hash_me) && (val < me))))) && 
-                 (atomicCAS((int*)&parent[neighbor], val, me) != val));
+                 (atomicCAS(&parent[neighbor], val, me) != val));
         if (val < 0) {
           val = atomicAdd(tail, 1);
           queue[val] = neighbor;
@@ -365,9 +364,9 @@ static __global__ void treelabel(
         int start,
         int end)
 {
-  const int from = (threadIdx.x + blockIdx.x * ThreadsPerBlock) / warpsize;
-  const int incr = (gridDim.x * ThreadsPerBlock) / warpsize;
-  const int lane = threadIdx.x % warpsize;
+  const int from = (threadIdx.x + blockIdx.x * ThreadsPerBlock) / warpSize;
+  const int incr = (gridDim.x * ThreadsPerBlock) / warpSize;
+  const int lane = threadIdx.x % warpSize;
   //cuv
   // top down: label tree + set nlist flag + set edge info + move tree nodes to front + make parent edge first in list
   for (int i = start + from; i < end; i += incr) {
@@ -379,7 +378,7 @@ static __global__ void treelabel(
 
     // set nlist flag + set edge info
     int lbl = (nodelabel >> 1) + 1;
-    for (int j = beg + lane; __any(j < end); j += warpsize) {
+    for (int j = beg + lane; __any(j < end); j += warpSize) {
       int lblinc = 0;
       int neighbor = -1;
       bool cond = false;
@@ -391,7 +390,7 @@ static __global__ void treelabel(
         }
       }
       const int currcount = lblinc;
-      for (int d = 1; d < 32; d *= 2) {
+      for (int d = 1; d < warpSize; d *= 2) {
         const int tmp = __shfl_up(lblinc, d);
         if (lane >= d) lblinc += tmp;
       }
@@ -404,14 +403,14 @@ static __global__ void treelabel(
         einfo[j].end = (einfo[j].end & 1) | ((lbl - 1) << 1);
         nlist[j] |= 1;  // child edge is in tree
       }
-      lbl = __shfl(lbl, 31);
+      lbl = __shfl(lbl, warpSize - 1);
     }
 
     // move tree nodes to front
     const int len = end - beg;
     if (len > 0) {
       enum {none, some, left, right};
-      if (len <= warpsize) {
+      if (len <= warpSize) {
         const int src = beg + lane;
         int b, e, in, neg,  n, state = none;
         if (lane < len) {
@@ -423,10 +422,10 @@ static __global__ void treelabel(
           const int neighbor = n >> 1;
           state = ((neighbor != par) && ((parent[neighbor] >> 2) == node)) ? left : right;  // partitioning condition
         }
-        const int ball = __ballot(state == left);
-        const int balr = __ballot(state == right);
-        const int pfsl = __popc(ball & ~(-1 << lane));
-        const int pfsr = __popc(balr & ~(-1 << lane));
+        const unsigned long long ball = __ballot(state == left);
+        const unsigned long long balr = __ballot(state == right);
+        const int pfsl = __popcll(ball & ~(-1ULL << lane));
+        const int pfsr = __popcll(balr & ~(-1ULL << lane));
         const int pos = beg + ((state == right) ? (len - 1 - pfsr) : pfsl);
         if (state != none) {
           einfo[pos].beg = b;
@@ -439,7 +438,7 @@ static __global__ void treelabel(
         int lp = beg;
         int rp = end - 1;
         int state = some;
-        int read = beg + min(warpsize, len);
+        int read = beg + min(warpSize, len);
         int src = beg + lane;
         int b = einfo[src].beg;
         int e = einfo[src].end;
@@ -452,8 +451,8 @@ static __global__ void treelabel(
             const int neighbor = n >> 1;
             state = ((neighbor != par) && ((parent[neighbor] >> 2) == node)) ? left : right;  // partitioning condition
           }
-          const int ball = __ballot(state == left);
-          const int pfsl = __popc(ball & ~(-1 << lane));
+          const unsigned long long ball = __ballot(state == left);
+          const unsigned long long pfsl = __popcll(ball & ~(-1ULL << lane));
           if (state == left) {
             int oldb, olde, oldin, oldneg, oldn;
             const int pos = lp + pfsl;
@@ -476,10 +475,10 @@ static __global__ void treelabel(
             n = oldn;
             state = (pos < read) ? none : some;
           }
-          lp += __popc(ball);
+          lp += __popcll(ball);
           read = max(read, lp);
-          const int balr = __ballot(state == right);
-          const int pfsr = __popc(balr & ~(-1 << lane));
+          const unsigned long long balr = __ballot(state == right);
+          const int pfsr = __popcll(balr & ~(-1ULL << lane));
           if (state == right) {
             int oldb, olde, oldin, oldneg, oldn;
             const int pos = rp - pfsr;
@@ -502,10 +501,10 @@ static __global__ void treelabel(
             n = oldn;
             state = (pos < read) ? none : some;
           }
-          rp -= __popc(balr);
+          rp -= __popcll(balr);
           if (read <= rp) {
-            const int bal = __ballot(state == none);
-            const int pfs = __popc(bal & ~(-1 << lane));
+            const unsigned long long bal = __ballot(state == none);
+            const int pfs = __popcll(bal & ~(-1ULL << lane));
             if (state == none) {
               const int pos = read + pfs;
               if (pos <= rp) {
@@ -517,7 +516,7 @@ static __global__ void treelabel(
                 state = some;
               }
             }
-            read += __popc(bal);  // may be too high but okay
+            read += __popcll(bal);  // may be too high but okay
           }
         } while (__any(state == some));
       }
@@ -525,7 +524,7 @@ static __global__ void treelabel(
 
     //find paredge here
     int paredge = -1;
-    for (int j = beg + lane; __any(j < end); j += warpsize) {
+    for (int j = beg + lane; __any(j < end); j += warpSize) {
       if (j < end) {
         const int neighbor = nlist[j] >> 1;
         if (neighbor == par) {
@@ -535,7 +534,7 @@ static __global__ void treelabel(
       if (__any(paredge >= 0)) break;
     }
     int pos = -1;
-    for (int j = beg + lane; __any(j < end); j += warpsize) {
+    for (int j = beg + lane; __any(j < end); j += warpSize) {
       if (j < end) {
         const int neighbor = nlist[j] >> 1;
         if (((parent[neighbor] >> 2) != node)) {
@@ -544,8 +543,8 @@ static __global__ void treelabel(
       }
       if (__any(pos >= 0)) break;
     }
-    unsigned int bal = __ballot(pos >= 0);
-    const int lid = __ffs(bal) - 1;
+    unsigned long long bal = __ballot(pos >= 0);
+    const int lid = __ffsll(bal) - 1;
     pos = __shfl(pos, lid);
     if (paredge >= 0) {  // only one thread per warp
       einfo[paredge].beg = nodelabel | 1;
@@ -604,9 +603,9 @@ static __global__ void processCycles(
   const EdgeInfo* const __restrict__ einfo,
   bool* const  __restrict__ minus)
 {
-  const int from = (threadIdx.x + blockIdx.x * ThreadsPerBlock) / warpsize;
-  const int incr = (gridDim.x * ThreadsPerBlock) / warpsize;
-  const int lane = threadIdx.x % warpsize;
+  const int from = (threadIdx.x + blockIdx.x * ThreadsPerBlock) / warpSize;
+  const int incr = (gridDim.x * ThreadsPerBlock) / warpSize;
+  const int lane = threadIdx.x % warpSize;
   for (int i = from; i < nodes; i += incr) {
     const int target0 = label[i];
     const int target1 = target0 | 1;
@@ -626,7 +625,7 @@ static __global__ void processCycles(
         }
         minus[j] = sum & 1;
       }
-      j -= warpsize;
+      j -= warpSize;
     }
    //__syncwarp();
   }
@@ -683,14 +682,14 @@ static __global__ void compute1(
   const bool* const __restrict__ minus,
   int* const __restrict__ negCnt)
 {
-  const int from = (threadIdx.x + blockIdx.x * ThreadsPerBlock) / warpsize;
-  const int incr = (gridDim.x * ThreadsPerBlock) / warpsize;
-  const int lane = threadIdx.x % warpsize;
+  const int from = (threadIdx.x + blockIdx.x * ThreadsPerBlock) / warpSize;
+  const int incr = (gridDim.x * ThreadsPerBlock) / warpSize;
+  const int lane = threadIdx.x % warpSize;
   for (int v = from; v < nodes; v += incr) {
     const int beg = nidx[v];
     const int end = nidx[v + 1];
     int vstat = representative(v, label);
-    for (int j = beg + lane; j < end; j += warpsize) {
+    for (int j = beg + lane; j < end; j += warpSize) {
       const int nli = nlist[j] >> 1;
       if (minus[j]) {
         negCnt[j]++;
@@ -772,9 +771,9 @@ static __global__ void ccHopCount(
   int* const __restrict__ ws1,
   int* const __restrict__ ws2)
 {
-  const int from = (threadIdx.x + blockIdx.x * ThreadsPerBlock) / warpsize;
-  const int incr = (gridDim.x * ThreadsPerBlock) / warpsize;
-  const int lane = threadIdx.x % warpsize;
+  const int from = (threadIdx.x + blockIdx.x * ThreadsPerBlock) / warpSize;
+  const int incr = (gridDim.x * ThreadsPerBlock) / warpSize;
+  const int lane = threadIdx.x % warpSize;
 
   const int hi2 = hi & 0xffffffff;
   for (int v = from; v < nodes; v += incr) {
@@ -782,7 +781,7 @@ static __global__ void ccHopCount(
     if (lblv == v) {
       count[lblv] = (lblv == hi2) ? 0 : INT_MAX - 1;  // init count
     }
-    for (int j = nidx[v] + lane; j < nidx[v + 1]; j += warpsize) {
+    for (int j = nidx[v] + lane; j < nidx[v + 1]; j += warpSize) {
       const int nli = nlist[j] >> 1;
       const int lbln = label[nli];
       if (lblv < lbln) {  // only one direction

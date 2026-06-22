@@ -56,3 +56,4 @@ clean:
 
 run: $(program)
 	$(LAUNCHER) ./$(program) 32 32 8192 8192 100
+	$(LAUNCHER) ./$(program) 64 64 8192 8192 100

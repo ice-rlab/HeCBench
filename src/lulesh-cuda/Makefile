@@ -14,7 +14,7 @@ LAUNCHER  =
 # Program name & source code list
 #===============================================================================
 
-program = lulesh
+program = main
 
 source = lulesh.cu \
         lulesh-viz.cu \
@@ -36,7 +36,7 @@ LDFLAGS =
 
 # Debug Flags
 ifeq ($(DEBUG),yes)
-  CFLAGS += -g
+  CFLAGS += -g -DDEBUG
   LDFLAGS  += -g
 endif
 
@@ -66,6 +66,8 @@ clean:
 test: $(program)
 	./$(program) -i 1 -s 32 -r 11 -b 1 -c 1
 
+# warmup and run
 run: $(program)
+	$(LAUNCHER) ./$(program) -i 100 -s 128 -r 11 -b 1 -c 1
 	$(LAUNCHER) ./$(program) -i 100 -s 128 -r 11 -b 1 -c 1
 

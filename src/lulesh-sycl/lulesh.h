@@ -1,8 +1,10 @@
 #ifndef __LULESH
 #define __LULESH
 
+#include <algorithm>
 #include <cmath>
 #include <vector>
+#include <sycl/sycl.hpp>
 
 // Emulate the number of CPU threads
 #define NT 2
@@ -10,10 +12,6 @@
 //**************************************************
 // Allow flexibility for arithmetic representations 
 //**************************************************
-
-#define MAX(a, b) ( ((a) > (b)) ? (a) : (b))
-
-#include "common.h"
 
 // Precision specification
 typedef float        real4 ;

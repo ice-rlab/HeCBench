@@ -1,5 +1,5 @@
 /*
-MPC code [double] (LnVs BIT LVs ZE): A GPU-based compressor for arrays of 
+MPC code [double] (LnVs BIT LVs ZE): A GPU-based compressor for arrays of
 double-precision floating-point values.  See the following publication for
 more information: http://cs.txstate.edu/~mb92/papers/cluster15.pdf.
 
@@ -43,28 +43,30 @@ September 2015.
 #include <cstdio>
 #include <cassert>
 #include <string>
-#include <sys/time.h>
+#include <chrono>
 #include <hip/hip_runtime.h>
 #include "utils.h"
 
 #define TPB 1024  /* do not change */
 
+
+template <int WarpSize>
 static inline __device__
 void prefixsum(int &val, int sbuf[TPB])
 {
-  const int warp = threadIdx.x >> 5;
-  const int lane = threadIdx.x & 31;
+  const int warp   = threadIdx.x / WarpSize;
+  const int lane   = threadIdx.x & (WarpSize - 1);
 
-  for (int d = 1; d < 32; d *= 2) {
+  for (int d = 1; d < WarpSize; d *= 2) {
     int tmp = __shfl_up(val, d);
     if (lane >= d) val += tmp;
   }
-  if (lane == 31) sbuf[warp] = val;
+  if (lane == WarpSize - 1) sbuf[warp] = val;
 
   __syncthreads();
   if (warp == 0) {
     int v = sbuf[lane];
-    for (int d = 1; d < 32; d *= 2) {
+    for (int d = 1; d < WarpSize; d *= 2) {
       int tmp = __shfl_up(v, d);
       if (lane >= d) v += tmp;
     }
@@ -77,23 +79,24 @@ void prefixsum(int &val, int sbuf[TPB])
   }
 }
 
+template <int WarpSize>
 static inline __device__
 void prefixsumlong(long &val, long sbuf[TPB])
 {
-  const int warp = threadIdx.x >> 5;
-  const int lane = threadIdx.x & 31;
+  const int warp   = threadIdx.x / WarpSize;
+  const int lane   = threadIdx.x & (WarpSize - 1);
 
-  for (int d = 1; d < 32; d *= 2) {
+  for (int d = 1; d < WarpSize; d *= 2) {
     unsigned int tmpl = __shfl_up((int)val, d);
     long tmph = __shfl_up((int)(val >> 32), d);
     if (lane >= d) val += (tmph << 32) + tmpl;
   }
-  if (lane == 31) sbuf[warp] = val;
+  if (lane == WarpSize - 1) sbuf[warp] = val;
 
   __syncthreads();
   if (warp == 0) {
     long v = sbuf[lane];
-    for (int d = 1; d < 32; d *= 2) {
+    for (int d = 1; d < WarpSize; d *= 2) {
       unsigned int tmpl = __shfl_up((int)v, d);
       long tmph = __shfl_up((int)(v >> 32), d);
       if (lane >= d) v += (tmph << 32) + tmpl;
@@ -107,26 +110,27 @@ void prefixsumlong(long &val, long sbuf[TPB])
   }
 }
 
+template <int WarpSize>
 static inline __device__
 void prefixsumdimlong(long &val, long sbuf[TPB], const unsigned char dim)
 {
   const int tid = threadIdx.x;
-  const int warp = tid >> 5;
-  const int lane = tid & 31;
+  const int warp   = threadIdx.x / WarpSize;
+  const int lane   = threadIdx.x & (WarpSize - 1);
   const int tix = (warp * dim) + (tid % dim);
 
-  for (int d = dim; d < 32; d *= 2) {
+  for (int d = dim; d < WarpSize; d *= 2) {
     unsigned int tmpl = __shfl_up((int)val, d);
     long tmph = __shfl_up((int)(val >> 32), d);
     if (lane >= d) val += (tmph << 32) + tmpl;
   }
-  if ((lane + dim) > 31) sbuf[tix] = val;
+  if ((lane + dim) > (WarpSize - 1)) sbuf[tix] = val;
 
   __syncthreads();
   if (warp < dim) {
     const int idx = (lane * dim) + warp;
     long v = sbuf[idx];
-    for (int d = 1; d < 32; d *= 2) {
+    for (int d = 1; d < WarpSize; d *= 2) {
       unsigned int tmpl = __shfl_up((int)v, d);
       long tmph = __shfl_up((int)(v >> 32), d);
       if (lane >= d) v += (tmph << 32) + tmpl;
@@ -160,9 +164,10 @@ The upper half of the first element specifies how many elements are actually
 used.  It should be replaced by the value n before the data is further processed.
 *****************************************************************************/
 
+template <int WarpSize>
 static __global__ __launch_bounds__(1024, 2)
 void MPCcompress(
-  const int n, 
+  const int n,
   long* __restrict__ const original,
   long* __restrict__ const compressed,
   volatile int* __restrict__ const goffset,
@@ -215,18 +220,21 @@ void MPCcompress(
     int loc = 0;
     if (v2 != 0) loc = 1;
 
-    unsigned int bitmap = __ballot(loc);
+    unsigned long long bitmap = __ballot(loc);
 
-    if (lanex == 32) {
-      sbuf2[tid] = bitmap;
+    if constexpr (WarpSize == 64) {
+      if (idx < n) compressed[1 + idx / 64] = bitmap;
+    } else {
+      if (lanex == 32) {
+        sbuf2[tid] = bitmap;
+      }
+      __syncthreads();
+      if (lanex == 0) {
+        if (idx < n) compressed[1 + idx / 64] = (sbuf2[tid + 32] << 32) + bitmap;
+      }
     }
 
-    __syncthreads();
-    if (lanex == 0) {
-      if (idx < n) compressed[1 + idx / 64] = (sbuf2[tid + 32] << 32) + bitmap;
-    }
-
-    prefixsum(loc, (int*)sbuf1);
+    prefixsum<WarpSize>(loc, (int*)sbuf1);
 
     if (v2 != 0) {
       sbuf2[loc - 1] = v2;
@@ -275,9 +283,10 @@ The output array needs to provide space for n elements has to be cast to an
 array of doubles before it can be used.
 *****************************************************************************/
 
+template <int WarpSize>
 static __global__ __launch_bounds__(1024, 2)
 void MPCdecompress(
-  long* __restrict__ const compressed, 
+  long* __restrict__ const compressed,
   long* __restrict__ const decompressed,
   volatile int* __restrict__ const goffset)
 {
@@ -306,7 +315,7 @@ void MPCdecompress(
     int loc = flag;
 
     __syncthreads();
-    prefixsum(loc, (int*)sbuf1);
+    prefixsum<WarpSize>(loc, (int*)sbuf1);
 
     if (tid == (TPB - 1)) {
       int st = init;
@@ -332,7 +341,7 @@ void MPCdecompress(
       v2 = sbuf2[loc - 1];
     }
 
-    prefixsumlong(v2, sbuf1);
+    prefixsumlong<WarpSize>(v2, sbuf1);
 
     sbuf2[tid] = v2;
 
@@ -342,7 +351,7 @@ void MPCdecompress(
       v1 = (v1 << 1) + ((sbuf2[warpx + i] >> lanex) & 1);
     }
 
-    prefixsumdimlong(v1, sbuf1, dim);
+    prefixsumdimlong<WarpSize>(v1, sbuf1, dim);
 
     if (idx < n) {
       decompressed[idx] = v1;
@@ -365,8 +374,9 @@ int main(int argc, char *argv[])
 
   hipDeviceProp_t deviceProp;
   hipGetDeviceProperties(&deviceProp, 0);
-  if (deviceProp.warpSize != 32) {
-    printf("Only a warp size of 32 is supported. Exit..\n");
+
+  if ((deviceProp.warpSize != 32) && (deviceProp.warpSize != 64)) {
+    printf("Only a warp size of 32 or 64 is supported. Exit..\n");
     exit(-1);
   }
 
@@ -395,20 +405,22 @@ int main(int argc, char *argv[])
   hipMalloc(&d_offs, blocks * sizeof(int));
   hipMemcpy(d_in, input, insize * sizeof(long), hipMemcpyHostToDevice);
 
-  struct timeval start, end;
   if (argc == 3) {
-    gettimeofday(&start, NULL);
+    auto start = std::chrono::steady_clock::now();
     hipMemset(d_offs, -1, blocks * sizeof(int));
-    MPCcompress<<<blocks, TPB>>>(insize, d_in, d_out, d_offs, dim);
+    if (deviceProp.warpSize == 64)
+      MPCcompress<64><<<blocks, TPB>>>(insize, d_in, d_out, d_offs, dim);
+    else
+      MPCcompress<32><<<blocks, TPB>>>(insize, d_in, d_out, d_offs, dim);
     hipDeviceSynchronize();
-    gettimeofday(&end, NULL);
+    auto end = std::chrono::steady_clock::now();
 
     hipMemcpy(output, d_out, sizeof(long), hipMemcpyDeviceToHost);
     outsize = output[0] >> 32;
 
-    double ctime = end.tv_sec + end.tv_usec / 1000000.0 - start.tv_sec - start.tv_usec / 1000000.0;
-    printf("compression time: %.2f ms\n", 1000.0 * ctime);
-    printf("compression throughput: %.3f GB/s\n", 0.000000001 * sizeof(long) * insize / ctime);
+    auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    printf("compression time: %.2f ms\n", time * 1e-6);
+    printf("compression throughput: %.3f GB/s\n", 1.0 * sizeof(long) * insize / time);
     printf("compression ratio: %.3f\n\n", 1.0 * insize / outsize);
 
     hipMemcpy(output, d_out, outsize * sizeof(long), hipMemcpyDeviceToHost);
@@ -418,17 +430,20 @@ int main(int argc, char *argv[])
 
   } else {
 
-    gettimeofday(&start, NULL);
+    auto start = std::chrono::steady_clock::now();
     hipMemset(d_offs, -1, blocks * sizeof(int));
-    MPCdecompress<<<blocks, TPB>>>(d_in, d_out, d_offs);
+    if (deviceProp.warpSize == 64)
+      MPCdecompress<64><<<blocks, TPB>>>(d_in, d_out, d_offs);
+    else
+      MPCdecompress<32><<<blocks, TPB>>>(d_in, d_out, d_offs);
     hipDeviceSynchronize();
-    gettimeofday(&end, NULL);
+    auto end = std::chrono::steady_clock::now();
 
     hipMemcpy(output, d_out, outsize * sizeof(long), hipMemcpyDeviceToHost);
 
-    double dtime = end.tv_sec + end.tv_usec / 1000000.0 - start.tv_sec - start.tv_usec / 1000000.0;
-    printf("decompression time: %.2f ms\n", 1000.0 * dtime);
-    printf("decompression throughput: %.3f GB/s\n\n", 0.000000001 * sizeof(long) * outsize / dtime);
+    auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    printf("decompression time: %.2f ms\n", time * 1e-6);
+    printf("decompression throughput: %.3f GB/s\n\n", 1.0 * sizeof(long) * outsize / time);
 
     name = "decompression.txt";
   }

@@ -18,12 +18,12 @@
  */
 
 
-#include <sys/time.h>
-#include <string>
 #include <iostream>
 #include <fstream>
 #include <cmath>
+#include <cstring>
 #include <algorithm>
+#include <chrono>
 #include <cuda.h>
 #include <cuda_fp16.h>
 #include "flame.hpp"
@@ -153,8 +153,7 @@ int main(int argc, char **argv)
   cudaMalloc((void**)&vertices, NUM_POINTS_PER_THREAD * NUM_THREADS * sizeof(float3));
 
   printf("entering mainloop\n");
-  struct timeval tv, tv2;
-  gettimeofday(&tv, NULL);
+  auto start = std::chrono::steady_clock::now();
 
   int perm_pos = 0;
   for (int n = 0; n < repeat; n++) {
@@ -201,9 +200,9 @@ int main(int argc, char **argv)
     perm_pos %= NUM_PERMUTATIONS;
   }
 
-  gettimeofday(&tv2, NULL);
-  float frametime = (tv2.tv_sec - tv.tv_sec) * 1000000 + tv2.tv_usec - tv.tv_usec;
-  printf("Total frame time is %.1f us\n", frametime);
+  auto end = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+  printf("Total frame time is %.3f s\n", time * 1e-9);
 
   #ifdef DUMP
   // dump vertices

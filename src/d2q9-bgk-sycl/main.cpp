@@ -52,9 +52,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <time.h>
 #include <string.h>
-#include <sys/time.h>
+#include <chrono>
 
 #include <iostream>
 #include <sycl/sycl.hpp>
@@ -136,8 +135,6 @@ int main(int argc, char* argv[])
   t_speed* tmp_cells = NULL;    /* scratch space */
   int*     obstaclesHost = NULL;/* grid indicating which cells are blocked */
   float*   av_vels   = NULL;    /* a record of the av. velocity computed for each timestep */
-  struct timeval timstr;        /* structure to hold elapsed time */
-  double tic, toc;              /* floating point numbers to calculate elapsed wallclock time */
 
   /* parse the command line */
   if (argc != 3)
@@ -245,14 +242,13 @@ int main(int argc, char* argv[])
   //Define range
   auto myRange = sycl::nd_range<2>(sycl::range<2>(Ny,Nx), sycl::range<2>(LOCALSIZEY,LOCALSIZEX));
 
-  q.wait();
+  std::chrono::steady_clock::time_point tic, toc;
 
   for (int tt = 0; tt < MaxIters; tt++) {
     if (tt == WARMUPS - 1) {
       //start timer after warmup
       q.wait();
-      gettimeofday(&timstr, NULL);
-      tic = timstr.tv_sec * 1e6 + timstr.tv_usec;
+      tic = std::chrono::steady_clock::now();
     }
     q.submit([&](sycl::handler &cgh) {
       //setup local memory
@@ -460,11 +456,11 @@ int main(int argc, char* argv[])
 
   //end timer
   q.wait();
-  gettimeofday(&timstr, NULL);
-  toc = timstr.tv_sec * 1e6 + timstr.tv_usec;
+  toc = std::chrono::steady_clock::now();
+  auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(toc - tic).count();
   printf("After warmup for %d iterations, ", WARMUPS);
   printf("average kernel execution time over %d iterations:\t\t\t%.6lf (us)\n",
-         MaxIters - WARMUPS, (toc - tic) / (MaxIters - WARMUPS));
+         MaxIters - WARMUPS, time * 1e-3 / (MaxIters - WARMUPS));
 
   q.memcpy(tot_up, partial_sum, sizeof(float)*(Ny/LOCALSIZEY)*(Nx/LOCALSIZEX)*MaxIters);
   q.memcpy(tot_cellsp, partial_sum2, sizeof(int)*(Ny/LOCALSIZEY)*(Nx/LOCALSIZEX)*MaxIters);

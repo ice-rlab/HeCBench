@@ -18,8 +18,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <cuda.h>
+#include <math.h>
 #include <chrono>
+#include <cuda.h>
 #include <cooperative_groups.h>
 
 #define checkCudaErrors(call)                                                           \
@@ -188,6 +189,36 @@ __global__ void transposeNoBankConflicts(
   for (int i=0; i<TILE_DIM; i+=BLOCK_ROWS)
   {
     odata[index_out+i*height] = tile[threadIdx.x][threadIdx.y+i];
+  }
+}
+
+#define SWIZZLE(row, col) ((col) ^ (row))
+__global__ void transposeSwizzle(
+        float *__restrict__ odata,
+  const float *__restrict__ idata,
+  int width, int height)
+{
+  cg::thread_block cta = cg::this_thread_block();
+  __shared__ float tile[TILE_DIM][TILE_DIM];
+
+  int xIndex = blockIdx.x * TILE_DIM + threadIdx.x;
+  int yIndex = blockIdx.y * TILE_DIM + threadIdx.y;
+  int index_in = xIndex + (yIndex)*width;
+
+  xIndex = blockIdx.y * TILE_DIM + threadIdx.x;
+  yIndex = blockIdx.x * TILE_DIM + threadIdx.y;
+  int index_out = xIndex + (yIndex)*height;
+
+  for (int i=0; i<TILE_DIM; i+=BLOCK_ROWS) {
+    // Store at swizzled columns
+    tile[threadIdx.y + i][SWIZZLE(threadIdx.y + i, threadIdx.x)] = idata[index_in + i*width];
+  }
+
+  cg::sync(cta);
+
+  for (int i=0; i<TILE_DIM; i+=BLOCK_ROWS) {
+    // Read from swizzled columns
+    odata[index_out + i*height] = tile[threadIdx.x][SWIZZLE(threadIdx.x, threadIdx.y + i)];
   }
 }
 
@@ -413,49 +444,54 @@ int main(int argc, char **argv)
   //
   bool success = true;
 
-  for (int k = 0; k<8; k++)
+  for (int k = 0; k<9; k++)
   {
     // set kernel pointer
     switch (k)
     {
       case 0:
         kernel = &copy;
-        kernelName = "simple copy       ";
+        kernelName = "simple memory copy  ";
         break;
 
       case 1:
         kernel = &copySharedMem;
-        kernelName = "shared memory copy";
+        kernelName = "shared memory copy  ";
         break;
 
       case 2:
-        kernel = &transposeNaive;
-        kernelName = "naive             ";
+        kernel = &transposeCoarseGrained;
+        kernelName = "coarse-grained      ";
         break;
 
       case 3:
-        kernel = &transposeCoalesced;
-        kernelName = "coalesced         ";
+        kernel = &transposeFineGrained;
+        kernelName = "fine-grained        ";
         break;
 
       case 4:
-        kernel = &transposeNoBankConflicts;
-        kernelName = "optimized         ";
+        kernel = &transposeNaive;
+        kernelName = "transpose naive     ";
         break;
 
       case 5:
-        kernel = &transposeCoarseGrained;
-        kernelName = "coarse-grained    ";
+        kernel = &transposeCoalesced;
+        kernelName = "transpose coalesced ";
         break;
 
       case 6:
-        kernel = &transposeFineGrained;
-        kernelName = "fine-grained      ";
+        kernel = &transposeNoBankConflicts;
+        kernelName = "transpose smem pad  ";
         break;
 
       case 7:
+        kernel = &transposeSwizzle;
+        kernelName = "transpose swizzle   ";
+        break;
+
+      case 8:
         kernel = &transposeDiagonal;
-        kernelName = "diagonal          ";
+        kernelName = "transpose diagonal  ";
         break;
     }
 
