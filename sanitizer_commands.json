@@ -1,0 +1,4222 @@
+{
+  "totals": {
+    "benchmarks": 419,
+    "standard": 407,
+    "special_handling": 12,
+    "declared_total": 419,
+    "declared_standard": 407,
+    "declared_special": 12
+  },
+  "categories": [
+    "Bandwidth",
+    "Bioinformatics",
+    "Computer vision and image processing",
+    "Cryptography",
+    "Data compression and reduction",
+    "Data encoding, decoding, or verification",
+    "Finance",
+    "Geoscience",
+    "Graph and Tree",
+    "Language and kernel features",
+    "Machine learning",
+    "Math",
+    "Random number generation",
+    "Search",
+    "Signal processing",
+    "Simulation",
+    "Sorting",
+    "Robotics"
+  ],
+  "benchmarks": [
+    {
+      "category": "Bandwidth",
+      "project": "allreduce",
+      "directory": "src/allreduce-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "mpirun -n 2 compute-sanitizer ./main",
+      "special_handling": true,
+      "reason": "MPI: requires `mpirun` launcher"
+    },
+    {
+      "category": "Bandwidth",
+      "project": "ccl",
+      "directory": "src/ccl-cuda",
+      "make_run_command": "./main 50",
+      "essential_command": "./main 1",
+      "sanitizer_command": "mpirun -n 2 compute-sanitizer ./main 1",
+      "special_handling": true,
+      "reason": "MPI: requires `mpirun` launcher"
+    },
+    {
+      "category": "Bandwidth",
+      "project": "pingpong",
+      "directory": "src/pingpong-cuda",
+      "make_run_command": "./mpi-program` / `./nccl-program",
+      "essential_command": "./mpi-program",
+      "sanitizer_command": "mpirun -n 2 compute-sanitizer ./mpi-program  # also: mpirun -n 2 compute-sanitizer ./nccl-program",
+      "special_handling": true,
+      "reason": "MPI: requires `mpirun`; two binaries (`mpi-program`, `nccl-program`)"
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "convolutionDeformable",
+      "directory": "src/convolutionDeformable-cuda",
+      "make_run_command": "python main.py",
+      "essential_command": "python main.py",
+      "sanitizer_command": "compute-sanitizer python main.py",
+      "special_handling": true,
+      "reason": "Python entry point (`python main.py`)"
+    },
+    {
+      "category": "Graph and Tree",
+      "project": "hungarian",
+      "directory": "src/hungarian-cuda",
+      "make_run_command": "./main output.txt",
+      "essential_command": "./main sanitizer_output.txt",
+      "sanitizer_command": "compute-sanitizer ./main sanitizer_output.txt",
+      "special_handling": true,
+      "reason": "CLI arg is an output file path (redirects stdout)"
+    },
+    {
+      "category": "Machine learning",
+      "project": "dwconv1d",
+      "directory": "src/dwconv1d-cuda",
+      "make_run_command": "python run.py",
+      "essential_command": "python run.py",
+      "sanitizer_command": "compute-sanitizer python run.py",
+      "special_handling": true,
+      "reason": "Python entry point (`python run.py`)"
+    },
+    {
+      "category": "Machine learning",
+      "project": "streamcluster",
+      "directory": "src/streamcluster-cuda",
+      "make_run_command": "./streamcluster 10 20 256 65536 65536 1000 none output.txt 1",
+      "essential_command": "./streamcluster 2 2 32 256 256 1 none output.txt 1",
+      "sanitizer_command": "compute-sanitizer ./streamcluster 2 2 32 256 256 1 none output.txt 1",
+      "special_handling": true,
+      "reason": "Non-standard binary: `./streamcluster` with complex CLI args"
+    },
+    {
+      "category": "Math",
+      "project": "braycurtis",
+      "directory": "src/braycurtis-cuda",
+      "make_run_command": "python tests/main.py",
+      "essential_command": "python tests/main.py",
+      "sanitizer_command": "compute-sanitizer python tests/main.py",
+      "special_handling": true,
+      "reason": "Python entry point (`python tests/main.py`)"
+    },
+    {
+      "category": "Simulation",
+      "project": "che",
+      "directory": "src/che-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "rm -rf out && mkdir -p out && compute-sanitizer ./main 1",
+      "special_handling": true,
+      "reason": "Pre-run setup: `rm -rf out && mkdir -p out` before launch"
+    },
+    {
+      "category": "Simulation",
+      "project": "halo-finder",
+      "directory": "src/halo-finder-cuda",
+      "make_run_command": "./cuda/ForceTreeTest 0.5 0.1 10000 0.1 10 N 12 rcb",
+      "essential_command": "./cuda/ForceTreeTest 0.5 0.1 64 0.1 10 N 12 rcb",
+      "sanitizer_command": "compute-sanitizer ./cuda/ForceTreeTest 0.5 0.1 64 0.1 10 N 12 rcb",
+      "special_handling": true,
+      "reason": "Non-standard binary: `./cuda/ForceTreeTest` (not `./main`)"
+    },
+    {
+      "category": "Simulation",
+      "project": "multimaterial",
+      "directory": "src/multimaterial-cuda",
+      "make_run_command": "./multimat_FL 2000 2000",
+      "essential_command": "./multimat_FL 64 64",
+      "sanitizer_command": "compute-sanitizer ./multimat_FL 64 64",
+      "special_handling": true,
+      "reason": "Non-standard binary: `./multimat_FL` (not `./main`)"
+    },
+    {
+      "category": "Simulation",
+      "project": "sparkler",
+      "directory": "src/sparkler-cuda",
+      "make_run_command": "mpirun -n 4 ./main --num_vector 4000 --num_field 90000 --num_iterations 10",
+      "essential_command": "./main --num_vector 64 --num_field 256 --num_iterations 1",
+      "sanitizer_command": "mpirun -n 2 compute-sanitizer ./main --num_vector 64 --num_field 256 --num_iterations 1",
+      "special_handling": true,
+      "reason": "MPI: requires `mpirun` launcher"
+    },
+    {
+      "category": "Bandwidth",
+      "project": "cmembench",
+      "directory": "src/cmembench-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Bandwidth",
+      "project": "babelstream",
+      "directory": "src/babelstream-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Bandwidth",
+      "project": "memcpy",
+      "directory": "src/memcpy-cuda",
+      "make_run_command": "./main 8192",
+      "essential_command": "./main 1024",
+      "sanitizer_command": "compute-sanitizer ./main 1024",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Bandwidth",
+      "project": "memtest",
+      "directory": "src/memtest-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Bandwidth",
+      "project": "p2p",
+      "directory": "src/p2p-cuda",
+      "make_run_command": "./main 2000",
+      "essential_command": "./main 256",
+      "sanitizer_command": "compute-sanitizer ./main 256",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Bandwidth",
+      "project": "randomAccess",
+      "directory": "src/randomAccess-cuda",
+      "make_run_command": "./main 10",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Bandwidth",
+      "project": "reshapeKVCache",
+      "directory": "src/reshapeKVCache-cuda",
+      "make_run_command": "./main 1024 32 128 1000",
+      "essential_command": "./main 256 32 128 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 32 128 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Bandwidth",
+      "project": "shmembench",
+      "directory": "src/shmembench-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Bandwidth",
+      "project": "storeKVCache",
+      "directory": "src/storeKVCache-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Bandwidth",
+      "project": "threadcpy",
+      "directory": "src/threadcpy-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Bandwidth",
+      "project": "triad",
+      "directory": "src/triad-cuda",
+      "make_run_command": "./main --passes 100 -v",
+      "essential_command": "./main --passes 1 -v",
+      "sanitizer_command": "compute-sanitizer ./main --passes 1 -v",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Bandwidth",
+      "project": "vadd",
+      "directory": "src/vadd-cuda",
+      "make_run_command": "./main 16384 8192 100",
+      "essential_command": "./main 256 128 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 128 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Bioinformatics",
+      "project": "all-pairs-distance",
+      "directory": "src/all-pairs-distance-cuda",
+      "make_run_command": "./main 10000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Bioinformatics",
+      "project": "cm",
+      "directory": "src/cm-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Bioinformatics",
+      "project": "epistasis",
+      "directory": "src/epistasis-cuda",
+      "make_run_command": "./main 146 31339 100",
+      "essential_command": "./main 64 64 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 64 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Bioinformatics",
+      "project": "extend2",
+      "directory": "src/extend2-cuda",
+      "make_run_command": "./main 2000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Bioinformatics",
+      "project": "fsm",
+      "directory": "src/fsm-cuda",
+      "make_run_command": "./main 65536",
+      "essential_command": "./main 1024",
+      "sanitizer_command": "compute-sanitizer ./main 1024",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Bioinformatics",
+      "project": "ga",
+      "directory": "src/ga-cuda",
+      "make_run_command": "./main 1000000 1000 11 1",
+      "essential_command": "./main 4096 64 11 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 64 11 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Bioinformatics",
+      "project": "nbnxm",
+      "directory": "src/nbnxm-cuda",
+      "make_run_command": "./main 10000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Bioinformatics",
+      "project": "nw",
+      "directory": "src/nw-cuda",
+      "make_run_command": "./main 16384 10 100",
+      "essential_command": "./main 64 10 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 10 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Bioinformatics",
+      "project": "pcc",
+      "directory": "src/pcc-cuda",
+      "make_run_command": "./main 90112 165",
+      "essential_command": "./main 256 64",
+      "sanitizer_command": "compute-sanitizer ./main 256 64",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "aobench",
+      "directory": "src/aobench-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "asmooth",
+      "directory": "src/asmooth-cuda",
+      "make_run_command": "./main 8192 2000 9 100",
+      "essential_command": "./main 256 256 9 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 9 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "background-subtract",
+      "directory": "src/background-subtract-cuda",
+      "make_run_command": "./main 4096 2048 0 102",
+      "essential_command": "./main 256 256 0 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 0 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "bezier-surface",
+      "directory": "src/bezier-surface-cuda",
+      "make_run_command": "./main -n 8192",
+      "essential_command": "./main -n 8192",
+      "sanitizer_command": "compute-sanitizer ./main -n 8192",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "bilateral",
+      "directory": "src/bilateral-cuda",
+      "make_run_command": "./main 2960 1440 0.5 0.5 1000",
+      "essential_command": "./main 256 256 0.5 0.5 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 0.5 0.5 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "cbsfil",
+      "directory": "src/cbsfil-cuda",
+      "make_run_command": "./main 8192 8192 100",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "car",
+      "directory": "src/car-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "ced",
+      "directory": "src/ced-cuda",
+      "make_run_command": "./main -a 0",
+      "essential_command": "./main -a 0",
+      "sanitizer_command": "compute-sanitizer ./main -a 0",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "colorwheel",
+      "directory": "src/colorwheel-cuda",
+      "make_run_command": "./main 10 4096 100",
+      "essential_command": "./main 10 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 10 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "convolution1D",
+      "directory": "src/convolution1D-cuda",
+      "make_run_command": "./main 134217728 1000",
+      "essential_command": "./main 1024 1",
+      "sanitizer_command": "compute-sanitizer ./main 1024 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "convolution3D",
+      "directory": "src/convolution3D-cuda",
+      "make_run_command": "./main 32 1 6 32 32 5 100",
+      "essential_command": "./main 32 1 6 32 32 5 1",
+      "sanitizer_command": "compute-sanitizer ./main 32 1 6 32 32 5 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "convolutionSeperable",
+      "directory": "src/convolutionSeparable-cuda",
+      "make_run_command": "./main 8192 8192 1000",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "dct8x8",
+      "directory": "src/dct8x8-cuda",
+      "make_run_command": "./main 8192 8192 100",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "debayer",
+      "directory": "src/debayer-cuda",
+      "make_run_command": "./main 8192 8192 100",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "depixel",
+      "directory": "src/depixel-cuda",
+      "make_run_command": "./main 2048 2048 10",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "degrid",
+      "directory": "src/degrid-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "doh",
+      "directory": "src/doh-cuda",
+      "make_run_command": "./main 480 640 100",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "dpid",
+      "directory": "src/dpid-cuda",
+      "make_run_command": "./main 640 480 0.5 100",
+      "essential_command": "./main 256 256 0.5 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 0.5 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "egs",
+      "directory": "src/egs-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "flame",
+      "directory": "src/flame-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "gabor",
+      "directory": "src/gabor-cuda",
+      "make_run_command": "./main 8640 15360 1000",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "gamma-correction",
+      "directory": "src/gamma-correction-cuda",
+      "make_run_command": "./main 7680 4320 256 100",
+      "essential_command": "./main 256 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "groupnorm",
+      "directory": "src/groupnorm-cuda",
+      "make_run_command": "./main 32 32 16 16 32 100",
+      "essential_command": "./main 32 32 16 16 32 1",
+      "sanitizer_command": "compute-sanitizer ./main 32 32 16 16 32 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "mandelbrot",
+      "directory": "src/mandelbrot-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "marchCubes",
+      "directory": "src/marchingCubes-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "match",
+      "directory": "src/match-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "morphology",
+      "directory": "src/morphology-cuda",
+      "make_run_command": "./main 32 32 8192 8192 100",
+      "essential_command": "./main 32 32 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 32 32 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "ne",
+      "directory": "src/ne-cuda",
+      "make_run_command": "./main 8192 8192 100",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "perlin",
+      "directory": "src/perlin-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "resize",
+      "directory": "src/resize-cuda",
+      "make_run_command": "./main 1920 1080 256 256 512 100",
+      "essential_command": "./main 256 256 64 64 128 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 64 64 128 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "spm",
+      "directory": "src/spm-cuda",
+      "make_run_command": "./main 256 1000",
+      "essential_command": "./main 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "srad",
+      "directory": "src/srad-cuda",
+      "make_run_command": "./main 1000 0.5 502 458",
+      "essential_command": "./main 1000 0.5 502 1",
+      "sanitizer_command": "compute-sanitizer ./main 1000 0.5 502 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "ssim",
+      "directory": "src/ssim-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "stencil1d",
+      "directory": "src/stencil1d-cuda",
+      "make_run_command": "./main 134217728 1000",
+      "essential_command": "./main 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "stencil3d",
+      "directory": "src/stencil3d-cuda",
+      "make_run_command": "./main 512 100",
+      "essential_command": "./main 64 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "surfel",
+      "directory": "src/surfel-cuda",
+      "make_run_command": "./main 1024 640 480 100",
+      "essential_command": "./main 64 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "tgvnn",
+      "directory": "src/tgvnn-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "upsample",
+      "directory": "src/upsample-cuda",
+      "make_run_command": "./main 32 64 64 64 100",
+      "essential_command": "./main 32 64 64 64 1",
+      "sanitizer_command": "compute-sanitizer ./main 32 64 64 64 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Computer vision and image processing",
+      "project": "zoom",
+      "directory": "src/zoom-cuda",
+      "make_run_command": "./main 1 3 2160 4096 1000",
+      "essential_command": "./main 1 3 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 1 3 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Cryptography",
+      "project": "bitpermute",
+      "directory": "src/bitpermute-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Cryptography",
+      "project": "chacha20",
+      "directory": "src/chacha20-cuda",
+      "make_run_command": "./main 100000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Cryptography",
+      "project": "ecdh",
+      "directory": "src/ecdh-cuda",
+      "make_run_command": "./main 50000000 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Cryptography",
+      "project": "keccaktreehash",
+      "directory": "src/keccaktreehash-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Cryptography",
+      "project": "merkle",
+      "directory": "src/merkle-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Cryptography",
+      "project": "present",
+      "directory": "src/present-cuda",
+      "make_run_command": "./main 100000 100",
+      "essential_command": "./main 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "atomicAggregate",
+      "directory": "src/atomicAggregate-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "atomicCAS",
+      "directory": "src/atomicCAS-cuda",
+      "make_run_command": "./main 10000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "atomicCost",
+      "directory": "src/atomicCost-cuda",
+      "make_run_command": "./main 1 10",
+      "essential_command": "./main 1 1",
+      "sanitizer_command": "compute-sanitizer ./main 1 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "atomicIntrinsics",
+      "directory": "src/atomicIntrinsics-cuda",
+      "make_run_command": "./main 27 100",
+      "essential_command": "./main 27 1",
+      "sanitizer_command": "compute-sanitizer ./main 27 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "atomicPerf",
+      "directory": "src/atomicPerf-cuda",
+      "make_run_command": "./main 1024",
+      "essential_command": "./main 1024",
+      "sanitizer_command": "compute-sanitizer ./main 1024",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "atomicSystemWide",
+      "directory": "src/atomicSystemWide-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "bitpacking",
+      "directory": "src/bitpacking-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "bscan",
+      "directory": "src/bscan-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "bwt",
+      "directory": "src/bwt-cuda",
+      "make_run_command": "./main 10000000",
+      "essential_command": "./main 4096",
+      "sanitizer_command": "compute-sanitizer ./main 4096",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "compute-score",
+      "directory": "src/compute-score-cuda",
+      "make_run_command": "./main -p=1000",
+      "essential_command": "./main -p=1",
+      "sanitizer_command": "compute-sanitizer ./main -p=1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "contract",
+      "directory": "src/contract-cuda",
+      "make_run_command": "./main 64 5",
+      "essential_command": "./main 64 5",
+      "sanitizer_command": "compute-sanitizer ./main 64 5",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "filter",
+      "directory": "src/filter-cuda",
+      "make_run_command": "./main 100000000 256 100",
+      "essential_command": "./main 4096 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "fma",
+      "directory": "src/fma-cuda",
+      "make_run_command": "./main 8192 8192 1031 8192 1000",
+      "essential_command": "./main 256 256 1031 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1031 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "fpc",
+      "directory": "src/fpc-cuda",
+      "make_run_command": "./main 256 100",
+      "essential_command": "./main 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "histogram",
+      "directory": "src/histogram-cuda",
+      "make_run_command": "./main --i=100",
+      "essential_command": "./main --i=1",
+      "sanitizer_command": "compute-sanitizer ./main --i=1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "minmax",
+      "directory": "src/minmax-cuda",
+      "make_run_command": "./main 100000 1000",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "mtf",
+      "directory": "src/mtf-cuda",
+      "make_run_command": "./main 1024 100",
+      "essential_command": "./main 1024 1",
+      "sanitizer_command": "compute-sanitizer ./main 1024 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "quantAQLM",
+      "directory": "src/quantAQLM-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "quantBnB",
+      "directory": "src/quantBnB-cuda",
+      "make_run_command": "./main 16777216 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "quantVLLM",
+      "directory": "src/quantVLLM-cuda",
+      "make_run_command": "./main 4096 5137 1000",
+      "essential_command": "./main 256 257 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 257 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "rle",
+      "directory": "src/rle-cuda",
+      "make_run_command": "./main --i=1000",
+      "essential_command": "./main --i=1",
+      "sanitizer_command": "compute-sanitizer ./main --i=1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "sc",
+      "directory": "src/sc-cuda",
+      "make_run_command": "./main -a 0.1",
+      "essential_command": "./main -a 0.1",
+      "sanitizer_command": "compute-sanitizer ./main -a 0.1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "scan",
+      "directory": "src/scan-cuda",
+      "make_run_command": "./main 268435456 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "scan2",
+      "directory": "src/scan2-cuda",
+      "make_run_command": "./main 1000 33554432 256",
+      "essential_command": "./main 1 4096 256",
+      "sanitizer_command": "compute-sanitizer ./main 1 4096 256",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "scan3",
+      "directory": "src/scan3-cuda",
+      "make_run_command": "./main 1000 33554432",
+      "essential_command": "./main 1 4096",
+      "sanitizer_command": "compute-sanitizer ./main 1 4096",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "scatter",
+      "directory": "src/scatter-cuda",
+      "make_run_command": "./main 10000000 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "scatterAdd",
+      "directory": "src/scatterAdd-cuda",
+      "make_run_command": "./main 10000000 32 8 1000",
+      "essential_command": "./main 4096 32 8 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 32 8 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "scatterThrust",
+      "directory": "src/scatterThrust-cuda",
+      "make_run_command": "./main 10000000 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data compression and reduction",
+      "project": "segment-reduce",
+      "directory": "src/segment-reduce-cuda",
+      "make_run_command": "./main 16384 100",
+      "essential_command": "./main 16384 1",
+      "sanitizer_command": "compute-sanitizer ./main 16384 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data encoding, decoding, or verification",
+      "project": "ans",
+      "directory": "src/ans-cuda",
+      "make_run_command": "./main 10",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data encoding, decoding, or verification",
+      "project": "base64e",
+      "directory": "src/base64e-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data encoding, decoding, or verification",
+      "project": "crc64",
+      "directory": "src/crc64-cuda",
+      "make_run_command": "./main 10 5 33554432",
+      "essential_command": "./main 1 5 4096",
+      "sanitizer_command": "compute-sanitizer ./main 1 5 4096",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data encoding, decoding, or verification",
+      "project": "crs",
+      "directory": "src/crs-cuda",
+      "make_run_command": "./main 10 10",
+      "essential_command": "./main 10 10",
+      "sanitizer_command": "compute-sanitizer ./main 10 10",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data encoding, decoding, or verification",
+      "project": "entropy",
+      "directory": "src/entropy-cuda",
+      "make_run_command": "./main 8192 8192 100",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data encoding, decoding, or verification",
+      "project": "jenkins-hash",
+      "directory": "src/jenkins-hash-cuda",
+      "make_run_command": "./main 256 16777216 100",
+      "essential_command": "./main 256 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data encoding, decoding, or verification",
+      "project": "kiss",
+      "directory": "src/kiss-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data encoding, decoding, or verification",
+      "project": "ldpc",
+      "directory": "src/ldpc-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data encoding, decoding, or verification",
+      "project": "md5hash",
+      "directory": "src/md5hash-cuda",
+      "make_run_command": "./main 1 4",
+      "essential_command": "./main 1 4",
+      "sanitizer_command": "compute-sanitizer ./main 1 4",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Data encoding, decoding, or verification",
+      "project": "murmurhash3",
+      "directory": "src/murmurhash3-cuda",
+      "make_run_command": "./main 100000 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Finance",
+      "project": "aop",
+      "directory": "src/aop-cuda",
+      "make_run_command": "./main -runs 100",
+      "essential_command": "./main -runs 1",
+      "sanitizer_command": "compute-sanitizer ./main -runs 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Finance",
+      "project": "black-scholes",
+      "directory": "src/black-scholes-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Finance",
+      "project": "binomial",
+      "directory": "src/binomial-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Finance",
+      "project": "bonds",
+      "directory": "src/bonds-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Finance",
+      "project": "libor",
+      "directory": "src/libor-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Geoscience",
+      "project": "aidw",
+      "directory": "src/aidw-cuda",
+      "make_run_command": "./main 100 1 100",
+      "essential_command": "./main 64 1 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 1 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Geoscience",
+      "project": "coordinates",
+      "directory": "src/coordinates-cuda",
+      "make_run_command": "./main 10000000 1000",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Geoscience",
+      "project": "hausdorff",
+      "directory": "src/hausdorff-cuda",
+      "make_run_command": "./main 100000 100000 100",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Graph and Tree",
+      "project": "floydwarshall",
+      "directory": "src/floydwarshall-cuda",
+      "make_run_command": "./main 1024 100 16",
+      "essential_command": "./main 1024 1 16",
+      "sanitizer_command": "compute-sanitizer ./main 1024 1 16",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Graph and Tree",
+      "project": "sssp",
+      "directory": "src/sssp-cuda",
+      "make_run_command": "./main -g 120 -t 1 -w 10 -r 100",
+      "essential_command": "./main -g 120 -t 1 -w 10 -r 1",
+      "sanitizer_command": "compute-sanitizer ./main -g 120 -t 1 -w 10 -r 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "adjacent",
+      "directory": "src/adjacent-cuda",
+      "make_run_command": "./main 100000000 1000",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "aligned-types",
+      "directory": "src/aligned-types-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "asta",
+      "directory": "src/asta-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "blockAccess",
+      "directory": "src/blockAccess-cuda",
+      "make_run_command": "./main 8192 8192 100",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "blockexchange",
+      "directory": "src/blockexchange-cuda",
+      "make_run_command": "./main 8192 8192 100",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "blockScan",
+      "directory": "src/blockScan-cuda",
+      "make_run_command": "./main 2227104 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "collision",
+      "directory": "src/collision-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "concurrentKernels",
+      "directory": "src/concurrentKernels-cuda",
+      "make_run_command": "./main 4",
+      "essential_command": "./main 4",
+      "sanitizer_command": "compute-sanitizer ./main 4",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "conversion",
+      "directory": "src/conversion-cuda",
+      "make_run_command": "./main 268435456 10",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "dispatch",
+      "directory": "src/dispatch-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "dp4a",
+      "directory": "src/dp4a-cuda",
+      "make_run_command": "./main 268435456 1000",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "graphExecution",
+      "directory": "src/graphExecution-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "ert",
+      "directory": "src/ert-cuda",
+      "make_run_command": "./main 1024 256",
+      "essential_command": "./main 1024 256",
+      "sanitizer_command": "compute-sanitizer ./main 1024 256",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "interleave",
+      "directory": "src/interleave-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "intrinsics-cast",
+      "directory": "src/intrinsics-cast-cuda",
+      "make_run_command": "./main 1000000 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "kernelLaunch",
+      "directory": "src/kernelLaunch-cuda",
+      "make_run_command": "./main 1000000",
+      "essential_command": "./main 4096",
+      "sanitizer_command": "compute-sanitizer ./main 4096",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "layout",
+      "directory": "src/layout-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "mallocFree",
+      "directory": "src/mallocFree-cuda",
+      "make_run_command": "./main 536870912",
+      "essential_command": "./main 65536",
+      "sanitizer_command": "compute-sanitizer ./main 65536",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "maxFlops",
+      "directory": "src/maxFlops-cuda",
+      "make_run_command": "./main 5000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "mixbench",
+      "directory": "src/mixbench-cuda",
+      "make_run_command": "./main 8192 1000",
+      "essential_command": "./main 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "nosync",
+      "directory": "src/nosync-cuda",
+      "make_run_command": "./main 268435456 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "openmp",
+      "directory": "src/openmp-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "overlap",
+      "directory": "src/overlap-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "pad",
+      "directory": "src/pad-cuda",
+      "make_run_command": "./main -a 0.1",
+      "essential_command": "./main -a 0.1",
+      "sanitizer_command": "compute-sanitizer ./main -a 0.1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "pitch",
+      "directory": "src/pitch-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "popcount",
+      "directory": "src/popcount-cuda",
+      "make_run_command": "./main 16777216 1000",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "pointerchase",
+      "directory": "src/pointerchase-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "prefetch",
+      "directory": "src/prefetch-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "reverse",
+      "directory": "src/reverse-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "ring",
+      "directory": "src/ring-cuda",
+      "make_run_command": "./main 1 67108864 100",
+      "essential_command": "./main 1 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 1 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "saxpy-ompt",
+      "directory": "src/saxpy-ompt-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "shuffle",
+      "directory": "src/shuffle-cuda",
+      "make_run_command": "./main 200000 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "simpleMultiDevice",
+      "directory": "src/simpleMultiDevice-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "streamCreateCopyDestroy",
+      "directory": "src/streamCreateCopyDestroy-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "streamOrderedAllocation",
+      "directory": "src/streamOrderedAllocation-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "streamPriority",
+      "directory": "src/streamPriority-cuda",
+      "make_run_command": "./main 300",
+      "essential_command": "./main 300",
+      "sanitizer_command": "compute-sanitizer ./main 300",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "streamUM",
+      "directory": "src/streamUM-cuda",
+      "make_run_command": "./main 4 1000 1",
+      "essential_command": "./main 4 1000 1",
+      "sanitizer_command": "compute-sanitizer ./main 4 1000 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "tensorAccessor",
+      "directory": "src/tensorAccessor-cuda",
+      "make_run_command": "./main 8192 8192 1000",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "threadfence",
+      "directory": "src/threadfence-cuda",
+      "make_run_command": "./main 100 100000000",
+      "essential_command": "./main 1 4096",
+      "sanitizer_command": "compute-sanitizer ./main 1 4096",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "warpexchange",
+      "directory": "src/warpexchange-cuda",
+      "make_run_command": "./main 8192 8192 100",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "vote",
+      "directory": "src/vote-cuda",
+      "make_run_command": "./main 10000000",
+      "essential_command": "./main 4096",
+      "sanitizer_command": "compute-sanitizer ./main 4096",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "wmma",
+      "directory": "src/wmma-cuda",
+      "make_run_command": "./main 0 16 16 64 100 1",
+      "essential_command": "./main 0 16 16 64 1 1",
+      "sanitizer_command": "compute-sanitizer ./main 0 16 16 64 1 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "wordcount",
+      "directory": "src/wordcount-cuda",
+      "make_run_command": "./main 10",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Language and kernel features",
+      "project": "zerocopy",
+      "directory": "src/zerocopy-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "accuracy",
+      "directory": "src/accuracy-cuda",
+      "make_run_command": "./main 8192 10000 10 100",
+      "essential_command": "./main 256 256 10 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 10 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "adam",
+      "directory": "src/adam-cuda",
+      "make_run_command": "./main 10000 200 100",
+      "essential_command": "./main 256 32 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 32 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "adamw",
+      "directory": "src/adamw-cuda",
+      "make_run_command": "./main 1000000 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "addBiasQKV",
+      "directory": "src/addBiasQKV-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "addBiasResidualLayerNorm",
+      "directory": "src/addBiasResidualLayerNorm-cuda",
+      "make_run_command": "./main 10000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "attention",
+      "directory": "src/attention-cuda",
+      "make_run_command": "./main 65536 2048 0 1000",
+      "essential_command": "./main 256 128 0 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 128 0 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "attention-paged",
+      "directory": "src/attention-paged-cuda",
+      "make_run_command": "./main 8 32 128 4096 128 100",
+      "essential_command": "./main 2 4 64 256 32 1",
+      "sanitizer_command": "compute-sanitizer ./main 2 4 64 256 32 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "attentionMergeState",
+      "directory": "src/attentionMergeState-cuda",
+      "make_run_command": "./main 1024 32 128 1000",
+      "essential_command": "./main 64 4 64 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 4 64 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "attentionMultiHead",
+      "directory": "src/attentionMultiHead-cuda",
+      "make_run_command": "./main 100000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "attentionMultiHeadKVCache",
+      "directory": "src/attentionMultiHeadKVCache-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "backprop",
+      "directory": "src/backprop-cuda",
+      "make_run_command": "./main 65536",
+      "essential_command": "./main 256",
+      "sanitizer_command": "compute-sanitizer ./main 256",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "bincount",
+      "directory": "src/bincount-cuda",
+      "make_run_command": "./main 10000000 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "bn",
+      "directory": "src/bn-cuda",
+      "make_run_command": "./main result 10",
+      "essential_command": "./main result 1",
+      "sanitizer_command": "compute-sanitizer ./main result 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "channelShuffle",
+      "directory": "src/channelShuffle-cuda",
+      "make_run_command": "./main 2 224 224 100",
+      "essential_command": "./main 2 224 224 1",
+      "sanitizer_command": "compute-sanitizer ./main 2 224 224 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "channelSum",
+      "directory": "src/channelSum-cuda",
+      "make_run_command": "./main 224 224 100",
+      "essential_command": "./main 224 224 1",
+      "sanitizer_command": "compute-sanitizer ./main 224 224 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "clink",
+      "directory": "src/clink-cuda",
+      "make_run_command": "./main 10",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "concat",
+      "directory": "src/concat-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "crossEntropy",
+      "directory": "src/crossEntropy-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "dense-embedding",
+      "directory": "src/dense-embedding-cuda",
+      "make_run_command": "./main 100000 256 1000",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "dropout",
+      "directory": "src/dropout-cuda",
+      "make_run_command": "./main 16777216 1000",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "dwconv",
+      "directory": "src/dwconv-cuda",
+      "make_run_command": "./main 128 16 224 224 100",
+      "essential_command": "./main 8 16 64 64 1",
+      "sanitizer_command": "compute-sanitizer ./main 8 16 64 64 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "expdist",
+      "directory": "src/expdist-cuda",
+      "make_run_command": "./main 16384 1000",
+      "essential_command": "./main 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "flip",
+      "directory": "src/flip-cuda",
+      "make_run_command": "./main 3 1024 100",
+      "essential_command": "./main 3 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 3 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "gelu",
+      "directory": "src/gelu-cuda",
+      "make_run_command": "./main 8 4096 512 100",
+      "essential_command": "./main 2 256 128 1",
+      "sanitizer_command": "compute-sanitizer ./main 2 256 128 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "geglu",
+      "directory": "src/geglu-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "glu",
+      "directory": "src/glu-cuda",
+      "make_run_command": "./main 3 1024 100",
+      "essential_command": "./main 3 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 3 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "gru",
+      "directory": "src/gru-cuda",
+      "make_run_command": "./main 102400 1024 100",
+      "essential_command": "./main 1024 64 1",
+      "sanitizer_command": "compute-sanitizer ./main 1024 64 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "kalman",
+      "directory": "src/kalman-cuda",
+      "make_run_command": "./main 1000 100 3 100",
+      "essential_command": "./main 64 1 3 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 1 3 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "knn",
+      "directory": "src/knn-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "layernorm",
+      "directory": "src/layernorm-cuda",
+      "make_run_command": "./main 8 1024 768 2000",
+      "essential_command": "./main 2 64 64 1",
+      "sanitizer_command": "compute-sanitizer ./main 2 64 64 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "lda",
+      "directory": "src/lda-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "lif",
+      "directory": "src/lif-cuda",
+      "make_run_command": "./main 10000 32 30000",
+      "essential_command": "./main 256 32 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 32 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "logprob",
+      "directory": "src/logprob-cuda",
+      "make_run_command": "./main 1024 8 50257 100",
+      "essential_command": "./main 64 4 50257 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 4 50257 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "lrn",
+      "directory": "src/lrn-cuda",
+      "make_run_command": "./main 10",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "mask",
+      "directory": "src/mask-cuda",
+      "make_run_command": "./main 512 512 512 100",
+      "essential_command": "./main 64 64 64 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 64 64 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "matern",
+      "directory": "src/matern-cuda",
+      "make_run_command": "./main 300 100",
+      "essential_command": "./main 300 1",
+      "sanitizer_command": "compute-sanitizer ./main 300 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "maxpool3d",
+      "directory": "src/maxpool3d-cuda",
+      "make_run_command": "./main 2048 2048 96 100",
+      "essential_command": "./main 256 256 32 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 32 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "mergeVS",
+      "directory": "src/mergeVS-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "mlp",
+      "directory": "src/mlp-cuda",
+      "make_run_command": "./main 3 128 784 512 10 0 0 100",
+      "essential_command": "./main 3 32 784 512 10 0 0 1",
+      "sanitizer_command": "compute-sanitizer ./main 3 32 784 512 10 0 0 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "moe",
+      "directory": "src/moe-cuda",
+      "make_run_command": "./main 32768 384 1 1000",
+      "essential_command": "./main 256 384 1 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 384 1 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "moe-align",
+      "directory": "src/moe-align-cuda",
+      "make_run_command": "./main 100000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "moe-sum",
+      "directory": "src/moe-sum-cuda",
+      "make_run_command": "./main 256 4096 100",
+      "essential_command": "./main 256 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "mrc",
+      "directory": "src/mrc-cuda",
+      "make_run_command": "./main 10000000 1000",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "multinomial",
+      "directory": "src/multinomial-cuda",
+      "make_run_command": "./main 65536 2048 100",
+      "essential_command": "./main 256 128 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 128 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "nlll",
+      "directory": "src/nlll-cuda",
+      "make_run_command": "./main 2048 1000 1000",
+      "essential_command": "./main 64 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "nonzero",
+      "directory": "src/nonzero-cuda",
+      "make_run_command": "./main 2048 2048 100",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "overlay",
+      "directory": "src/overlay-cuda",
+      "make_run_command": "./main 640 480",
+      "essential_command": "./main 640 480",
+      "sanitizer_command": "compute-sanitizer ./main 640 480",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "p4",
+      "directory": "src/p4-cuda",
+      "make_run_command": "./main 10000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "page-rank",
+      "directory": "src/page-rank-cuda",
+      "make_run_command": "./main -n 20000 -i 100",
+      "essential_command": "./main -n 256 -i 1",
+      "sanitizer_command": "compute-sanitizer ./main -n 256 -i 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "permute",
+      "directory": "src/permute-cuda",
+      "make_run_command": "./main 8 100",
+      "essential_command": "./main 8 1",
+      "sanitizer_command": "compute-sanitizer ./main 8 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "perplexity",
+      "directory": "src/perplexity-cuda",
+      "make_run_command": "./main 10000 50 100",
+      "essential_command": "./main 256 50 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 50 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "pointwise",
+      "directory": "src/pointwise-cuda",
+      "make_run_command": "./main 100 8 512 64 10",
+      "essential_command": "./main 16 8 128 32 1",
+      "sanitizer_command": "compute-sanitizer ./main 16 8 128 32 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "pool",
+      "directory": "src/pool-cuda",
+      "make_run_command": "./main 128 48 224 224 54 54 100",
+      "essential_command": "./main 8 48 64 64 32 32 1",
+      "sanitizer_command": "compute-sanitizer ./main 8 48 64 64 32 32 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "qkv",
+      "directory": "src/qkv-cuda",
+      "make_run_command": "./main 1",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "qtclustering",
+      "directory": "src/qtclustering-cuda",
+      "make_run_command": "./main --Verbose",
+      "essential_command": "./main --Verbose",
+      "sanitizer_command": "compute-sanitizer ./main --Verbose",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "remap",
+      "directory": "src/remap-cuda",
+      "make_run_command": "./main 10000000 1000",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "relu",
+      "directory": "src/relu-cuda",
+      "make_run_command": "./main 10000000 100000",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "resnet-kernels",
+      "directory": "src/resnet-kernels-cuda",
+      "make_run_command": "./main 0 100",
+      "essential_command": "./main 0 1",
+      "sanitizer_command": "compute-sanitizer ./main 0 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "rmsnorm",
+      "directory": "src/rmsnorm-cuda",
+      "make_run_command": "./main 1 12288 1000",
+      "essential_command": "./main 1 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 1 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "rowwiseMoments",
+      "directory": "src/rowwiseMoments-cuda",
+      "make_run_command": "./main 128 128 128 128 4 100",
+      "essential_command": "./main 32 32 32 32 4 1",
+      "sanitizer_command": "compute-sanitizer ./main 32 32 32 32 4 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "rotary",
+      "directory": "src/rotary-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "sampling",
+      "directory": "src/sampling-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "scel",
+      "directory": "src/scel-cuda",
+      "make_run_command": "./main 2048 50176 100",
+      "essential_command": "./main 64 1024 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 1024 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "silu",
+      "directory": "src/silu-cuda",
+      "make_run_command": "./main 32 32 256 256 100",
+      "essential_command": "./main 8 32 64 64 1",
+      "sanitizer_command": "compute-sanitizer ./main 8 32 64 64 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "softmax",
+      "directory": "src/softmax-cuda",
+      "make_run_command": "./main 100000 784 0 100",
+      "essential_command": "./main 256 64 0 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 64 0 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "softmax-fused",
+      "directory": "src/softmax-fused-cuda",
+      "make_run_command": "./main 4 12 256 256 1000",
+      "essential_command": "./main 2 4 64 64 1",
+      "sanitizer_command": "compute-sanitizer ./main 2 4 64 64 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "softmax-online",
+      "directory": "src/softmax-online-cuda",
+      "make_run_command": "./main 1",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "ssm",
+      "directory": "src/ssm-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "stddev",
+      "directory": "src/stddev-cuda",
+      "make_run_command": "./main 65536 16384 100",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "tsne",
+      "directory": "src/tsne-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "unfold",
+      "directory": "src/unfold-cuda",
+      "make_run_command": "./main 10000000 1000",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "vol2col",
+      "directory": "src/vol2col-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "wedford",
+      "directory": "src/wedford-cuda",
+      "make_run_command": "./main 512 512 8192 100",
+      "essential_command": "./main 64 64 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 64 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Machine learning",
+      "project": "winograd",
+      "directory": "src/winograd-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "atan2",
+      "directory": "src/atan2-cuda",
+      "make_run_command": "./main 10000000 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "axpby",
+      "directory": "src/axpby-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "bgmv",
+      "directory": "src/bgmv-cuda",
+      "make_run_command": "./main --op bgmv_shrink --tokens 1 --hidden 4096 --rank 16 --loras 4 --repeat 200",
+      "essential_command": "./main --op bgmv_shrink --tokens 1 --hidden 4096 --rank 16 --loras 4 --repeat 1",
+      "sanitizer_command": "compute-sanitizer ./main --op bgmv_shrink --tokens 1 --hidden 4096 --rank 16 --loras 4 --repeat 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "blas-dot",
+      "directory": "src/blas-dot-cuda",
+      "make_run_command": "./main 268435456 1000",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "blas-fp8gemm",
+      "directory": "src/blas-fp8gemm-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "blas-gemm",
+      "directory": "src/blas-gemm-cuda",
+      "make_run_command": "./main 79 91 83 1000",
+      "essential_command": "./main 79 91 83 1",
+      "sanitizer_command": "compute-sanitizer ./main 79 91 83 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "blas-gemmBatched",
+      "directory": "src/blas-gemmBatched-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "blas-gemmStridedBatched",
+      "directory": "src/blas-gemmStridedBatched-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "blas-gemmEx",
+      "directory": "src/blas-gemmEx-cuda",
+      "make_run_command": "./main 4096 4096 4096 100",
+      "essential_command": "./main 64 64 64 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 64 64 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "blas-gemmEx2",
+      "directory": "src/blas-gemmEx2-cuda",
+      "make_run_command": "./main 4096 4096 4096 100",
+      "essential_command": "./main 64 64 64 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 64 64 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "complex",
+      "directory": "src/complex-cuda",
+      "make_run_command": "./main 10000000 1000",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "cross",
+      "directory": "src/cross-cuda",
+      "make_run_command": "./main 10000000 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "determinant",
+      "directory": "src/determinant-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "dp",
+      "directory": "src/dp-cuda",
+      "make_run_command": "./main 268435456 1000",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "eigenvalue",
+      "directory": "src/eigenvalue-cuda",
+      "make_run_command": "./main 2048 10000",
+      "essential_command": "./main 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "f16max",
+      "directory": "src/f16max-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "f16sp",
+      "directory": "src/f16sp-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "f8cast",
+      "directory": "src/f8cast-cuda",
+      "make_run_command": "./main 268435456 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "fresnel",
+      "directory": "src/fresnel-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "fwt",
+      "directory": "src/fwt-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "gaussian",
+      "directory": "src/gaussian-cuda",
+      "make_run_command": "./main -q -t -s 4096",
+      "essential_command": "./main -q -t -s 256",
+      "sanitizer_command": "compute-sanitizer ./main -q -t -s 256",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "geam",
+      "directory": "src/geam-cuda",
+      "make_run_command": "./main 16384 16384 200",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "gels",
+      "directory": "src/gels-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "gemv",
+      "directory": "src/gemv-cuda",
+      "make_run_command": "./main -s 16384 -i 100 -x 512 -y 2",
+      "essential_command": "./main -s 256 -i 1 -x 512 -y 2",
+      "sanitizer_command": "compute-sanitizer ./main -s 256 -i 1 -x 512 -y 2",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "hadamard",
+      "directory": "src/hadamard-cuda",
+      "make_run_command": "./main 1024 100",
+      "essential_command": "./main 1024 1",
+      "sanitizer_command": "compute-sanitizer ./main 1024 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "hellinger",
+      "directory": "src/hellinger-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "hmm",
+      "directory": "src/hmm-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "idivide",
+      "directory": "src/idivide-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "interval",
+      "directory": "src/interval-cuda",
+      "make_run_command": "./main 0 100000",
+      "essential_command": "./main 0 1",
+      "sanitizer_command": "compute-sanitizer ./main 0 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "jaccard",
+      "directory": "src/jaccard-cuda",
+      "make_run_command": "./main 1024 512 1000",
+      "essential_command": "./main 1024 512 1",
+      "sanitizer_command": "compute-sanitizer ./main 1024 512 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "jacobi",
+      "directory": "src/jacobi-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "kurtosis",
+      "directory": "src/kurtosis-cuda",
+      "make_run_command": "./main 100000000 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "langford",
+      "directory": "src/langford-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "lci",
+      "directory": "src/lci-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "lebesgue",
+      "directory": "src/lebesgue-cuda",
+      "make_run_command": "./main 1000000 2",
+      "essential_command": "./main 4096 2",
+      "sanitizer_command": "compute-sanitizer ./main 4096 2",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "lfib4",
+      "directory": "src/lfib4-cuda",
+      "make_run_command": "./main 2000000000",
+      "essential_command": "./main 4096",
+      "sanitizer_command": "compute-sanitizer ./main 4096",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "lud",
+      "directory": "src/lud-cuda",
+      "make_run_command": "./main -s 8192",
+      "essential_command": "./main -s 256",
+      "sanitizer_command": "compute-sanitizer ./main -s 256",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "ludb",
+      "directory": "src/ludb-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "lut-gemm",
+      "directory": "src/lut-gemm-cuda",
+      "make_run_command": "./main 1 100",
+      "essential_command": "./main 1 1",
+      "sanitizer_command": "compute-sanitizer ./main 1 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "michalewicz",
+      "directory": "src/michalewicz-cuda",
+      "make_run_command": "./main 100000000 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "matrix-rotate",
+      "directory": "src/matrix-rotate-cuda",
+      "make_run_command": "./main 5000 100",
+      "essential_command": "./main 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "matrixT",
+      "directory": "src/matrixT-cuda",
+      "make_run_command": "./main 16384 16384 200",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "minkowski",
+      "directory": "src/minkowski-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "mr",
+      "directory": "src/mr-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "mrg32k3a",
+      "directory": "src/mrg32k3a-cuda",
+      "make_run_command": "./main 1000000 10",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "norm2",
+      "directory": "src/norm2-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "nqueen",
+      "directory": "src/nqueen-cuda",
+      "make_run_command": "./main 15 7 100",
+      "essential_command": "./main 15 7 1",
+      "sanitizer_command": "compute-sanitizer ./main 15 7 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "ntt",
+      "directory": "src/ntt-cuda",
+      "make_run_command": "./main 100000",
+      "essential_command": "./main 256",
+      "sanitizer_command": "compute-sanitizer ./main 256",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "phmm",
+      "directory": "src/phmm-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "pnpoly",
+      "directory": "src/pnpoly-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "quant3MatMul",
+      "directory": "src/quant3MatMul-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "reverse2D",
+      "directory": "src/reverse2D-cuda",
+      "make_run_command": "./main 8192 8192 100",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "rfs",
+      "directory": "src/rfs-cuda",
+      "make_run_command": "./main 100 5000000",
+      "essential_command": "./main 1 4096",
+      "sanitizer_command": "compute-sanitizer ./main 1 4096",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "romberg",
+      "directory": "src/romberg-cuda",
+      "make_run_command": "./main 128 64 1000",
+      "essential_command": "./main 128 64 1",
+      "sanitizer_command": "compute-sanitizer ./main 128 64 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "sddmm-batch",
+      "directory": "src/sddmm-batch-cuda",
+      "make_run_command": "./main 32 1024 1024 1024 1024 1000 1",
+      "essential_command": "./main 32 256 256 256 256 1 1",
+      "sanitizer_command": "compute-sanitizer ./main 32 256 256 256 256 1 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "secp256k1",
+      "directory": "src/secp256k1-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "simpleSpmv",
+      "directory": "src/simpleSpmv-cuda",
+      "make_run_command": "./main 16777216 10240 100",
+      "essential_command": "./main 256 64 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 64 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "spd2s",
+      "directory": "src/spd2s-cuda",
+      "make_run_command": "./main 20082 20082 150616 1000",
+      "essential_command": "./main 64 64 512 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 64 512 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "spgeam",
+      "directory": "src/spgeam-cuda",
+      "make_run_command": "./main 20082 20082 150616 1000 1",
+      "essential_command": "./main 64 64 512 1 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 64 512 1 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "spgemm",
+      "directory": "src/spgemm-cuda",
+      "make_run_command": "./main 1024 1024 1024 1024 1000 1",
+      "essential_command": "./main 64 64 64 64 1 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 64 64 64 1 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "spmm",
+      "directory": "src/spmm-cuda",
+      "make_run_command": "./main 1024 1024 1024 1024 1024 1000 1",
+      "essential_command": "./main 64 64 64 64 64 1 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 64 64 64 64 1 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "spmv",
+      "directory": "src/spmv-cuda",
+      "make_run_command": "./main 16777216 10240 100",
+      "essential_command": "./main 256 64 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 64 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "spnnz",
+      "directory": "src/spnnz-cuda",
+      "make_run_command": "./main 20082 20082 150616 1000",
+      "essential_command": "./main 64 64 512 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 64 512 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "sps2d",
+      "directory": "src/sps2d-cuda",
+      "make_run_command": "./main 20082 20082 150616 1000",
+      "essential_command": "./main 64 64 512 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 64 512 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "spsort",
+      "directory": "src/spsort-cuda",
+      "make_run_command": "./main 20082 20082 150616 1000",
+      "essential_command": "./main 64 64 512 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 64 512 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "thomas",
+      "directory": "src/thomas-cuda",
+      "make_run_command": "./main 1024 16384 64 100",
+      "essential_command": "./main 64 256 64 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 256 64 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "wyllie",
+      "directory": "src/wyllie-cuda",
+      "make_run_command": "./main 8000000 1 100",
+      "essential_command": "./main 4096 1 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Math",
+      "project": "zeropoint",
+      "directory": "src/zeropoint-cuda",
+      "make_run_command": "./main 10000000 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Random number generation",
+      "project": "mt",
+      "directory": "src/mt-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Random number generation",
+      "project": "qrg",
+      "directory": "src/qrg-cuda",
+      "make_run_command": "./main 100000",
+      "essential_command": "./main 256",
+      "sanitizer_command": "compute-sanitizer ./main 256",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Random number generation",
+      "project": "rng-wallace",
+      "directory": "src/rng-wallace-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Random number generation",
+      "project": "sobol",
+      "directory": "src/sobol-cuda",
+      "make_run_command": "./main 1000000 1000 100",
+      "essential_command": "./main 4096 64 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 64 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Search",
+      "project": "bsearch",
+      "directory": "src/bsearch-cuda",
+      "make_run_command": "./main 8388608 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Search",
+      "project": "keogh",
+      "directory": "src/keogh-cuda",
+      "make_run_command": "./main 256 20000000 100",
+      "essential_command": "./main 256 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Search",
+      "project": "s8n",
+      "directory": "src/s8n-cuda",
+      "make_run_command": "./main 1513 2048 100",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Signal processing",
+      "project": "extrema",
+      "directory": "src/extrema-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Signal processing",
+      "project": "fft",
+      "directory": "src/fft-cuda",
+      "make_run_command": "./main 3 100",
+      "essential_command": "./main 3 1",
+      "sanitizer_command": "compute-sanitizer ./main 3 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Signal processing",
+      "project": "lombscargle",
+      "directory": "src/lombscargle-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Signal processing",
+      "project": "sosfil",
+      "directory": "src/sosfil-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Signal processing",
+      "project": "zmddft",
+      "directory": "src/zmddft-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "ace",
+      "directory": "src/ace-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "adv",
+      "directory": "src/adv-cuda",
+      "make_run_command": "./main 7 15 8000 100",
+      "essential_command": "./main 7 15 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 7 15 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "amgmk",
+      "directory": "src/amgmk-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "axhelm",
+      "directory": "src/axhelm-cuda",
+      "make_run_command": "./main 1 8000 100",
+      "essential_command": "./main 1 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 1 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "bh",
+      "directory": "src/bh-cuda",
+      "make_run_command": "./main 100000 100",
+      "essential_command": "./main 1024 1",
+      "sanitizer_command": "compute-sanitizer ./main 1024 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "bspline-vgh",
+      "directory": "src/bspline-vgh-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "burger",
+      "directory": "src/burger-cuda",
+      "make_run_command": "./main 8200 8100 100",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "cooling",
+      "directory": "src/cooling-cuda",
+      "make_run_command": "./main 1000000 1000",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "ccsd-trpdrv",
+      "directory": "src/ccsd-trpdrv-cuda",
+      "make_run_command": "./main 160 400 100",
+      "essential_command": "./main 16 32 1",
+      "sanitizer_command": "compute-sanitizer ./main 16 32 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "chemv",
+      "directory": "src/chemv-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "chi2",
+      "directory": "src/chi2-cuda",
+      "make_run_command": "./main 4000 400000 2000 2000 256 1000",
+      "essential_command": "./main 64 64 32 32 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 64 32 32 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "clenergy",
+      "directory": "src/clenergy-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "cobahh",
+      "directory": "src/cobahh-cuda",
+      "make_run_command": "./main 1000000 10",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "d3q19_bgk",
+      "directory": "src/d3q19-bgk-cuda",
+      "make_run_command": "./main 128",
+      "essential_command": "./main 128",
+      "sanitizer_command": "compute-sanitizer ./main 128",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "damage",
+      "directory": "src/damage-cuda",
+      "make_run_command": "./main 50000000 1000",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "ddbp",
+      "directory": "src/ddbp-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "dslash",
+      "directory": "src/dslash-cuda",
+      "make_run_command": "./main 256",
+      "essential_command": "./main 256",
+      "sanitizer_command": "compute-sanitizer ./main 256",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "eikonal",
+      "directory": "src/eikonal-cuda",
+      "make_run_command": "./main -s 512",
+      "essential_command": "./main -s 512",
+      "sanitizer_command": "compute-sanitizer ./main -s 512",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "fdtd3d",
+      "directory": "src/fdtd3d-cuda",
+      "make_run_command": "./main --dimx=192 --dimy=184 --timesteps=90",
+      "essential_command": "./main --dimx=64 --dimy=64 --timesteps=1",
+      "sanitizer_command": "compute-sanitizer ./main --dimx=64 --dimy=64 --timesteps=1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "feynman-kac",
+      "directory": "src/feynman-kac-cuda",
+      "make_run_command": "./main 10",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "fhd",
+      "directory": "src/fhd-cuda",
+      "make_run_command": "./main 100000 2097152 0",
+      "essential_command": "./main 256 4096 0",
+      "sanitizer_command": "compute-sanitizer ./main 256 4096 0",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "fluidSim",
+      "directory": "src/fluidSim-cuda",
+      "make_run_command": "./main 10000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "goulash",
+      "directory": "src/goulash-cuda",
+      "make_run_command": "./main 101 5",
+      "essential_command": "./main 101 5",
+      "sanitizer_command": "compute-sanitizer ./main 101 5",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "gpp",
+      "directory": "src/gpp-cuda",
+      "make_run_command": "./main benchmark",
+      "essential_command": "./main benchmark",
+      "sanitizer_command": "compute-sanitizer ./main benchmark",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "grrt",
+      "directory": "src/grrt-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "haccmk",
+      "directory": "src/haccmk-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "heartwall",
+      "directory": "src/heartwall-cuda",
+      "make_run_command": "./main 104",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "heat",
+      "directory": "src/heat-cuda",
+      "make_run_command": "./main 4096 1000",
+      "essential_command": "./main 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "heat2d",
+      "directory": "src/heat2d-cuda",
+      "make_run_command": "./main 4096 4096 1000",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "hexicton",
+      "directory": "src/hexciton-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "hwt1d",
+      "directory": "src/hwt1d-cuda",
+      "make_run_command": "./main 8388608 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "hypterm",
+      "directory": "src/hypterm-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "ising",
+      "directory": "src/ising-cuda",
+      "make_run_command": "./main -x 5120 -y 5120 -w 10 -n 1000",
+      "essential_command": "./main -x 128 -y 128 -w 10 -n 1",
+      "sanitizer_command": "compute-sanitizer ./main -x 128 -y 128 -w 10 -n 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "iso2dfd",
+      "directory": "src/iso2dfd-cuda",
+      "make_run_command": "./main 2048 2048 1000",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "laplace",
+      "directory": "src/laplace-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "laplace3d",
+      "directory": "src/laplace3d-cuda",
+      "make_run_command": "./main 128 128 128 100 1",
+      "essential_command": "./main 32 32 32 1 1",
+      "sanitizer_command": "compute-sanitizer ./main 32 32 32 1 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "lavaMD",
+      "directory": "src/lavaMD-cuda",
+      "make_run_command": "./main -boxes1d 30",
+      "essential_command": "./main -boxes1d 30",
+      "sanitizer_command": "compute-sanitizer ./main -boxes1d 30",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "lid-driven-cavity",
+      "directory": "src/lid-driven-cavity-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "loopback",
+      "directory": "src/loopback-cuda",
+      "make_run_command": "./main 0 100",
+      "essential_command": "./main 0 1",
+      "sanitizer_command": "compute-sanitizer ./main 0 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "lulesh",
+      "directory": "src/lulesh-cuda",
+      "make_run_command": "./main -i 100 -s 128 -r 11 -b 1 -c 1",
+      "essential_command": "./main -i 1 -s 32 -r 11 -b 1 -c 1",
+      "sanitizer_command": "compute-sanitizer ./main -i 1 -s 32 -r 11 -b 1 -c 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "md",
+      "directory": "src/md-cuda",
+      "make_run_command": "./main 3 1000",
+      "essential_command": "./main 3 1",
+      "sanitizer_command": "compute-sanitizer ./main 3 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "mdh",
+      "directory": "src/mdh-cuda",
+      "make_run_command": "./main -itmax 100",
+      "essential_command": "./main -itmax 1",
+      "sanitizer_command": "compute-sanitizer ./main -itmax 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "metropolis",
+      "directory": "src/metropolis-cuda",
+      "make_run_command": "./main -l 32 11 -t 4.7 0.1 -a 10 2 2000 10 -h 1.0 -z 7919",
+      "essential_command": "./main -l 32 11 -t 4.7 0.1 -a 10 2 64 1 -h 1.0 -z 7919",
+      "sanitizer_command": "compute-sanitizer ./main -l 32 11 -t 4.7 0.1 -a 10 2 64 1 -h 1.0 -z 7919",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "miniFE",
+      "directory": "src/miniFE-cuda",
+      "make_run_command": "./main -nx 128 -ny 128 -nz 128",
+      "essential_command": "./main -nx 32 -ny 32 -nz 32",
+      "sanitizer_command": "compute-sanitizer ./main -nx 32 -ny 32 -nz 32",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "minimod",
+      "directory": "src/minimod-cuda",
+      "make_run_command": "./main --warm-up --niters 1 --grid 256 --nsteps 1000",
+      "essential_command": "./main --warm-up --niters 1 --grid 64 --nsteps 1",
+      "sanitizer_command": "compute-sanitizer ./main --warm-up --niters 1 --grid 64 --nsteps 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "minisweep",
+      "directory": "src/minisweep-cuda",
+      "make_run_command": "./main --niterations 100",
+      "essential_command": "./main --niterations 1",
+      "sanitizer_command": "compute-sanitizer ./main --niterations 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "miniWeather",
+      "directory": "src/miniWeather-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "mxfp4",
+      "directory": "src/mxfp4-cuda",
+      "make_run_command": "./main 536870912 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "myocte",
+      "directory": "src/myocyte-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "nbody",
+      "directory": "src/nbody-cuda",
+      "make_run_command": "./main 16000 10",
+      "essential_command": "./main 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "particle-diffusion",
+      "directory": "src/particle-diffusion-cuda",
+      "make_run_command": "./main 2000 100",
+      "essential_command": "./main 64 1",
+      "sanitizer_command": "compute-sanitizer ./main 64 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "particlefilter",
+      "directory": "src/particlefilter-cuda",
+      "make_run_command": "./main -x 128 -y 128 -z 10 -np 400000",
+      "essential_command": "./main -x 32 -y 32 -z 4 -np 1024",
+      "sanitizer_command": "compute-sanitizer ./main -x 32 -y 32 -z 4 -np 1024",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "particles",
+      "directory": "src/particles-cuda",
+      "make_run_command": "./main 10000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "pathfinder",
+      "directory": "src/pathfinder-cuda",
+      "make_run_command": "./main 100000 1000 5",
+      "essential_command": "./main 256 64 5",
+      "sanitizer_command": "compute-sanitizer ./main 256 64 5",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "pns",
+      "directory": "src/pns-cuda",
+      "make_run_command": "./main 22 100000 1000000",
+      "essential_command": "./main 8 256 256",
+      "sanitizer_command": "compute-sanitizer ./main 8 256 256",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "projectile",
+      "directory": "src/projectile-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "pso",
+      "directory": "src/pso-cuda",
+      "make_run_command": "./main 30 10000",
+      "essential_command": "./main 30 1",
+      "sanitizer_command": "compute-sanitizer ./main 30 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "qem",
+      "directory": "src/qem-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "rainflow",
+      "directory": "src/rainflow-cuda",
+      "make_run_command": "./main 100000 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "rayleighBenardConvection",
+      "directory": "src/rayleighBenardConvection-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "reaction",
+      "directory": "src/reaction-cuda",
+      "make_run_command": "./main 10000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "rsbench",
+      "directory": "src/rsbench-cuda",
+      "make_run_command": "./main -s large -m event",
+      "essential_command": "./main -s small -m event",
+      "sanitizer_command": "compute-sanitizer ./main -s small -m event",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "rtm8",
+      "directory": "src/rtm8-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "rushlarsen",
+      "directory": "src/rushlarsen-cuda",
+      "make_run_command": "./main 100 100000",
+      "essential_command": "./main 1 256",
+      "sanitizer_command": "compute-sanitizer ./main 1 256",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "s3d",
+      "directory": "src/s3d-cuda",
+      "make_run_command": "./main -q -n 100 -s 1",
+      "essential_command": "./main -q -n 1 -s 1",
+      "sanitizer_command": "compute-sanitizer ./main -q -n 1 -s 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "su3",
+      "directory": "src/su3-cuda",
+      "make_run_command": "./main -i 1000 -l 32 -t 128 -v 3 -w 1",
+      "essential_command": "./main -i 1 -l 32 -t 128 -v 3 -w 1",
+      "sanitizer_command": "compute-sanitizer ./main -i 1 -l 32 -t 128 -v 3 -w 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "sheath",
+      "directory": "src/sheath-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "simplemoc",
+      "directory": "src/simplemoc-cuda",
+      "make_run_command": "./main -s 5000000 -e 128 -n 10",
+      "essential_command": "./main -s 128 -e 32 -n 1",
+      "sanitizer_command": "compute-sanitizer ./main -s 128 -e 32 -n 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "slit",
+      "directory": "src/slit-cuda",
+      "make_run_command": "./main 1024 1000",
+      "essential_command": "./main 1024 1",
+      "sanitizer_command": "compute-sanitizer ./main 1024 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "sph",
+      "directory": "src/sph-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "tensorT",
+      "directory": "src/tensorT-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "testSNAP",
+      "directory": "src/testSNAP-cuda",
+      "make_run_command": "./main --nsteps 100",
+      "essential_command": "./main --nsteps 1",
+      "sanitizer_command": "compute-sanitizer ./main --nsteps 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "tissue",
+      "directory": "src/tissue-cuda",
+      "make_run_command": "./main 32 100",
+      "essential_command": "./main 32 1",
+      "sanitizer_command": "compute-sanitizer ./main 32 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "tridiagonal",
+      "directory": "src/tridiagonal-cuda",
+      "make_run_command": "./main -num_systems=524288",
+      "essential_command": "./main -num_systems=4096",
+      "sanitizer_command": "compute-sanitizer ./main -num_systems=4096",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "tsa",
+      "directory": "src/tsa-cuda",
+      "make_run_command": "./main 1024 1024 100",
+      "essential_command": "./main 256 256 1",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "vanGenuchten",
+      "directory": "src/vanGenuchten-cuda",
+      "make_run_command": "./main 256 256 256 1000",
+      "essential_command": "./main 32 32 32 1",
+      "sanitizer_command": "compute-sanitizer ./main 32 32 32 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "vmc",
+      "directory": "src/vmc-cuda",
+      "make_run_command": "./main 100",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "wlcpow",
+      "directory": "src/wlcpow-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "wsm5",
+      "directory": "src/wsm5-cuda",
+      "make_run_command": "./main 10",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "xlqc",
+      "directory": "src/xlqc-cuda",
+      "make_run_command": "./main sp",
+      "essential_command": "./main sp",
+      "sanitizer_command": "compute-sanitizer ./main sp",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Simulation",
+      "project": "xsbench",
+      "directory": "src/xsbench-cuda",
+      "make_run_command": "./main -s large -m event -r 10",
+      "essential_command": "./main -s small -m event -r 1",
+      "sanitizer_command": "compute-sanitizer ./main -s small -m event -r 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Sorting",
+      "project": "bitonic-sort",
+      "directory": "src/bitonic-sort-cuda",
+      "make_run_command": "./main 25 2",
+      "essential_command": "./main 25 1",
+      "sanitizer_command": "compute-sanitizer ./main 25 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Sorting",
+      "project": "hybridsort",
+      "directory": "src/hybridsort-cuda",
+      "make_run_command": "./main r",
+      "essential_command": "./main r",
+      "sanitizer_command": "compute-sanitizer ./main r",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Sorting",
+      "project": "is",
+      "directory": "src/is-cuda",
+      "make_run_command": "./main 256 256 256",
+      "essential_command": "./main 256 256 256",
+      "sanitizer_command": "compute-sanitizer ./main 256 256 256",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Sorting",
+      "project": "merge",
+      "directory": "src/merge-cuda",
+      "make_run_command": "./main 100000 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Sorting",
+      "project": "quicksort",
+      "directory": "src/quicksort-cuda",
+      "make_run_command": "./main 10 2048 2048",
+      "essential_command": "./main 1 2048 2048",
+      "sanitizer_command": "compute-sanitizer ./main 1 2048 2048",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Sorting",
+      "project": "radixsort",
+      "directory": "src/radixsort-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Sorting",
+      "project": "segsort",
+      "directory": "src/segsort-cuda",
+      "make_run_command": "./main",
+      "essential_command": "./main",
+      "sanitizer_command": "compute-sanitizer ./main",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Sorting",
+      "project": "sort",
+      "directory": "src/sort-cuda",
+      "make_run_command": "./main 3 100",
+      "essential_command": "./main 3 1",
+      "sanitizer_command": "compute-sanitizer ./main 3 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Sorting",
+      "project": "sortKV",
+      "directory": "src/sortKV-cuda",
+      "make_run_command": "./main 1000000 100",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Sorting",
+      "project": "split",
+      "directory": "src/split-cuda",
+      "make_run_command": "./main 33554432 1000",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Sorting",
+      "project": "topk",
+      "directory": "src/topk-cuda",
+      "make_run_command": "./main 3072 1000",
+      "essential_command": "./main 3072 1",
+      "sanitizer_command": "compute-sanitizer ./main 3072 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Sorting",
+      "project": "warpsort",
+      "directory": "src/warpsort-cuda",
+      "make_run_command": "./main 1000",
+      "essential_command": "./main 1",
+      "sanitizer_command": "compute-sanitizer ./main 1",
+      "special_handling": false,
+      "reason": null
+    },
+    {
+      "category": "Robotics",
+      "project": "rodrigues",
+      "directory": "src/rodrigues-cuda",
+      "make_run_command": "./main 1000000 10000",
+      "essential_command": "./main 4096 1",
+      "sanitizer_command": "compute-sanitizer ./main 4096 1",
+      "special_handling": false,
+      "reason": null
+    }
+  ]
+}

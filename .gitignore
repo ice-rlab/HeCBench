@@ -27,3 +27,4 @@ main
 *.json
 !CMakePresets.json
 !CMakeUserPresets.json
+!sanitizer_commands.json
