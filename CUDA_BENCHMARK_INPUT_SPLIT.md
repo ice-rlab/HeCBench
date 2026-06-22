@@ -770,6 +770,35 @@ Per-benchmark analysis of `make run` invocations across all 19 README categories
 
 ## Summary
 
-- **Total benchmarks analyzed:** 271 rows across 19 categories
-- **Require external file (YES):** 62 benchmarks
-- **No external file (NO, synthetic only):** 209 benchmarks
+### Totals
+
+| Section | Count |
+|---|---:|
+| **YES** (requires external file) | **86** |
+| **NO** (no external file) | **419** |
+| **Total** | **505** |
+
+### Per Category
+
+| Category | YES | NO | Subtotal |
+|---|---:|---:|---:|
+| Automotive | 1 | 0 | 1 |
+| Bandwidth | 0 | 15 | 15 |
+| Bioinformatics | 12 | 9 | 21 |
+| Computer vision and image processing | 14 | 40 | 54 |
+| Cryptography | 3 | 6 | 9 |
+| Data compression and reduction | 3 | 29 | 32 |
+| Data encoding, decoding, or verification | 0 | 10 | 10 |
+| Finance | 0 | 5 | 5 |
+| Geoscience | 3 | 3 | 6 |
+| Graph and Tree | 6 | 3 | 9 |
+| Language and kernel features | 0 | 44 | 44 |
+| Machine learning | 13 | 76 | 89 |
+| Math | 7 | 69 | 76 |
+| Random number generation | 2 | 4 | 6 |
+| Search | 6 | 3 | 9 |
+| Signal processing | 0 | 5 | 5 |
+| Simulation | 15 | 85 | 100 |
+| Sorting | 0 | 12 | 12 |
+| Robotics | 1 | 1 | 2 |
+| **Total** | **86** | **419** | **505** |
