@@ -17,6 +17,7 @@ main
 *.ncu-rep
 
 build/
+san-reports/
 
 # Exclude text files except CMake and documentation
 *.txt
