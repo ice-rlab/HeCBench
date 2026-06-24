@@ -1,4 +1,3 @@
-#include "hip/hip_runtime.h"
 /******************************************************************************
  * Copyright (c) 2011-2018, NVIDIA CORPORATION.  All rights reserved.
  *
@@ -142,13 +141,13 @@ double run_smem_atomics(
     GpuTimer gpu_timer;
     gpu_timer.Start();
 
-    hipLaunchKernelGGL(HIP_KERNEL_NAME(histogram_smem_atomics<NUM_PARTS, ACTIVE_CHANNELS, NUM_BINS>), dim3(grid), dim3(block), 0, 0, 
+    histogram_smem_atomics<NUM_PARTS, ACTIVE_CHANNELS, NUM_BINS><<<grid, block>>>(
         d_image,
         width,
         height,
         d_part_hist);
 
-    hipLaunchKernelGGL(HIP_KERNEL_NAME(histogram_smem_accum<NUM_PARTS, ACTIVE_CHANNELS, NUM_BINS>), dim3(grid2), dim3(block2), 0, 0, 
+    histogram_smem_accum<NUM_PARTS, ACTIVE_CHANNELS, NUM_BINS><<<grid2, block2>>>(
         d_part_hist,
         total_blocks,
         d_hist);
