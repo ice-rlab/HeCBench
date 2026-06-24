@@ -300,10 +300,11 @@ bool IsNaN(T val) { return false; }
 template<>
 inline bool IsNaN<float>(float val)
 {
-    volatile unsigned int bits = reinterpret_cast<unsigned int &>(val);
+    unsigned int bits;
+    memcpy(&bits, &val, sizeof(bits));
 
     return (((bits >= 0x7F800001) && (bits <= 0x7FFFFFFF)) || 
-        ((bits >= 0xFF800001) && (bits <= 0xFFFFFFFF)));
+            ((bits >= 0xFF800001) && (bits <= 0xFFFFFFFF)));
 }
 
 
@@ -328,10 +329,11 @@ inline bool IsNaN<sycl::float4>(sycl::float4 val)
 template<>
 inline bool IsNaN<double>(double val)
 {
-    volatile unsigned long long bits = *reinterpret_cast<unsigned long long *>(&val);
+    unsigned long long bits;
+    memcpy(&bits, &val, sizeof(bits));
 
     return (((bits >= 0x7FF0000000000001) && (bits <= 0x7FFFFFFFFFFFFFFF)) || 
-        ((bits >= 0xFFF0000000000001) && (bits <= 0xFFFFFFFFFFFFFFFF)));
+            ((bits >= 0xFFF0000000000001) && (bits <= 0xFFFFFFFFFFFFFFFF)));
 }
 
 template<>
