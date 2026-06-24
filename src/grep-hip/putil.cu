@@ -31,7 +31,7 @@ __device__ inline State* pstate(int c, State *out, State *out1,
 
 
 /* Initialize frag struct. */
-  __device__ inline Frag
+__device__ inline Frag
 pfrag(State *start, Ptrlist *out)
 {
   Frag n = { start, out };
@@ -39,7 +39,7 @@ pfrag(State *start, Ptrlist *out)
 }
 
 /* Create singleton list containing just outp. */
-  __device__ inline Ptrlist*
+__device__ inline Ptrlist*
 plist1(State **outp)
 {
   Ptrlist *l;
@@ -50,7 +50,7 @@ plist1(State **outp)
 }
 
 /* Patch the list of states at out to point to start. */
-  __device__ inline void
+__device__ inline void
 ppatch(Ptrlist *l, State *s)
 {
   Ptrlist *next;
@@ -62,7 +62,7 @@ ppatch(Ptrlist *l, State *s)
 }
 
 /* Join the two lists l1 and l2, returning the combination. */
-  __device__ inline Ptrlist*
+__device__ inline Ptrlist*
 pappend(Ptrlist *l1, Ptrlist *l2)
 {
   Ptrlist *oldl1;
@@ -80,7 +80,7 @@ pappend(Ptrlist *l1, Ptrlist *l2)
  * Return start state.
  */
 
-  __device__ inline State*
+__device__ inline State*
 ppost2nfa(char *postfix, State *lstate, int *pnstate, State *pmatchstate)
 {
   char *p;
@@ -92,8 +92,8 @@ ppost2nfa(char *postfix, State *lstate, int *pnstate, State *pmatchstate)
   if(postfix == NULL)
     return NULL;
 
-#define push(s) *stackp++ = s
-#define pop() *--stackp
+#define push(s) do { if (stackp >= stack + 1000) return NULL; *stackp++ = (s); } while (0)
+#define pop()   (stackp <= stack ? (Frag){NULL, NULL} : *--stackp)
 
   stackp = stack;
   for(p=postfix; *p; p++){

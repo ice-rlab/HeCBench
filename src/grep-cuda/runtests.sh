@@ -14,7 +14,7 @@ teststrings=(
 ".*\?" "t*hi.\?"
 );
 
-prog=nfa
+prog=main
 
 # no stale file ?
 #rm -f RESULTS
