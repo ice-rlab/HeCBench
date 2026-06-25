@@ -92,8 +92,8 @@ ppost2nfa(char *postfix, State *lstate, int *pnstate, State *pmatchstate)
   if(postfix == NULL)
     return NULL;
 
-#define push(s) *stackp++ = s
-#define pop() *--stackp
+#define push(s) do { if (stackp >= stack + 1000) return NULL; *stackp++ = (s); } while (0)
+#define pop()   (stackp <= stack ? (Frag){NULL, NULL} : *--stackp)
 
   stackp = stack;
   for(p=postfix; *p; p++){

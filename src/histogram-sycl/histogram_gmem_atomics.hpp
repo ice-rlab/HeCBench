@@ -95,10 +95,11 @@ double run_gmem_atomics(
 
     q.submit([&] (sycl::handler& cgh) {
       cgh.parallel_for<class hist_gmem_accum<ACTIVE_CHANNELS, NUM_BINS, PixelType>>(
-        sycl::nd_range<1>(sycl::range<1>((ACTIVE_CHANNELS * NUM_BINS + 127) / 128 * 128), sycl::range<1>(128)),
+        sycl::nd_range<1>(sycl::range<1>((ACTIVE_CHANNELS * NUM_BINS + 127) / 128 * 128),
+                          sycl::range<1>(128)),
         [=] (sycl::nd_item<1> item) {
         int i = item.get_global_id(0);
-        if (i > ACTIVE_CHANNELS * NUM_BINS) return; // out of range
+        if (i >= ACTIVE_CHANNELS * NUM_BINS) return;
 
         unsigned int total = 0;
         for (int j = 0; j < total_blocks; j++)
