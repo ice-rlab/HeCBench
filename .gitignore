@@ -16,6 +16,8 @@ main
 
 *.ncu-rep
 
+build/
+
 # Exclude text files except CMake and documentation
 *.txt
 !CMakeLists.txt
